@@ -1,0 +1,21 @@
+// Prisma schema — https://pris.ly/d/prisma-schema
+//
+// The datasource URL lives in prisma7.config.ts, not here: Prisma 7 deprecated
+// `url` inside the datasource block.
+//
+// No models yet. The schema and its row targets are designed together in a
+// later step, so this file intentionally declares only the datasource and the
+// generator.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+
+  // This package is CommonJS (no "type": "module"), but the prisma-client
+  // generator emits ESM by default — which a nodenext CJS build cannot require.
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
