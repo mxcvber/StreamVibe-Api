@@ -1,0 +1,94 @@
+# Local development data services for the StreamVibe API.
+#
+# The API itself is NOT containerized — it runs on the host via `npm run dev` and reaches both
+# services on localhost. Only Postgres and Redis live here.
+#
+#   docker compose up -d      start both services
+#   docker compose ps         check health (want "Up (healthy)", not just "Up")
+#   docker compose down       stop, keeping data
+#   docker compose down -v    stop and DESTROY the volumes
+
+name: streamvibe
+
+services:
+  postgres:
+    # Pinned to the current stable line. 19 is still in beta as of Sept 2026; there is no data
+    # yet, so moving to it later costs one `down -v` plus a re-migrate.
+    #
+    # Debian base, not Alpine, on purpose: Alpine's musl libc sorts text differently from glibc,
+    # and every managed Postgres worth deploying to (RDS, Neon, Supabase) is glibc. Given this
+    # project seeds a large catalog and cares about index design, matching production collation
+    # is worth the extra image size — switching bases after seeding means a REINDEX.
+    image: postgres:18.6-trixie
+    container_name: streamvibe-postgres
+    restart: unless-stopped
+    environment:
+      # Values come from .env, which Compose reads automatically. There are deliberately no
+      # defaults: `:?` aborts `compose up` naming the missing variable, rather than letting
+      # Compose substitute a blank string and the Postgres entrypoint die further along with
+      # "you must specify POSTGRES_PASSWORD". These must stay in sync with DATABASE_URL.
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # Host port 5433, not the usual 5432, and that is not a typo: a native Windows PostgreSQL
+      # 18 service (postgresql-x64-18, Automatic start) owns 5432 on this machine. So
+      # localhost:5432 is that install and localhost:5433 is this container. The container-side
+      # port stays 5432 — that is where Postgres listens inside the image.
+      #
+      # Bound to loopback rather than 0.0.0.0 — no reason to expose the dev database to the LAN.
+      - '127.0.0.1:5433:5432'
+    volumes:
+      # DO NOT change this to /var/lib/postgresql/data.
+      #
+      # Postgres 18 moved PGDATA to a version-specific path (/var/lib/postgresql/18/docker) and
+      # moved its declared VOLUME up one level to /var/lib/postgresql. The old
+      # `:/var/lib/postgresql/data` mount that most tutorials still show SILENTLY fails to
+      # persist on 18: Docker creates an anonymous volume at the real path and this named volume
+      # sits empty. See docker-library/postgres#1370.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      # initdb on a cold volume is slow; don't report unhealthy while it runs.
+      start_period: 30s
+    # Seeding profile — off by default. Stock settings (128MB shared_buffers, 4MB work_mem) give
+    # honest EXPLAIN output while the schema is small, but they are slow for bulk inserts and
+    # index builds. Uncomment when the seeder starts pushing real row counts.
+    # command:
+    #   - postgres
+    #   - -c
+    #   - shared_buffers=512MB
+    #   - -c
+    #   - work_mem=32MB
+    #   - -c
+    #   - maintenance_work_mem=512MB
+
+  redis:
+    # 8.2 is the LTS line (Redis marks the 2nd minor of a major as LTS), supported to ~Sep 2030.
+    # 8.10 is current but short-term support and turns over roughly quarterly. Nothing BullMQ or
+    # @nestjs/cache-manager needs was added after 8.2.
+    #
+    # Alpine is fine here, unlike Postgres — Redis has no locale or collation surface.
+    image: redis:8.2.9-alpine
+    container_name: streamvibe-redis
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis-data:/data
+    # The official image ships with NO persistence configured, so `docker compose down` would
+    # silently discard queued BullMQ jobs. AOF makes the dev queue behave like a real one; cache
+    # entries surviving a restart is harmless.
+    command: ['redis-server', '--appendonly', 'yes']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
