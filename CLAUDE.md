@@ -17,20 +17,24 @@ choice is expensive to reverse, surface the trade-off instead of just picking on
 
 ## Commands
 
-| Command                    | Purpose                                                          |
-| -------------------------- | ---------------------------------------------------------------- |
-| `npm run dev`              | Watch-mode dev server                                            |
-| `npm run build`            | `nest build` → `dist/` (`deleteOutDir` is on, so it wipes first) |
-| `npm run start:prod`       | `node dist/main`                                                 |
-| `npm test`                 | Jest unit tests (`*.spec.ts` under `src/`)                       |
-| `npm test -- app.service`  | Single test file, by path substring                              |
-| `npm test -- -t "returns"` | Single test case, by name                                        |
-| `npm run test:cov`         | Coverage → `../coverage`                                         |
-| `npm run lint`             | ESLint **with `--fix`** — it rewrites files                      |
-| `npx tsc --noEmit`         | Type-check only                                                  |
+| Command              | Purpose                                                          |
+| -------------------- | ---------------------------------------------------------------- |
+| `npm run dev`        | Watch-mode dev server                                            |
+| `npm run build`      | `nest build` → `dist/` (`deleteOutDir` is on, so it wipes first) |
+| `npm run generate`   | `prisma generate` → Prisma Client into `src/generated/prisma`    |
+| `npm run start:prod` | `node dist/main`                                                 |
+| `npm run lint`       | ESLint **with `--fix`** — it rewrites files                      |
+| `npx tsc --noEmit`   | Type-check only                                                  |
 
-Jest is configured inline in `package.json`, not a separate config file, and its `rootDir` is
-`src` — which is why coverage lands outside the project at `../coverage`.
+`npm run generate` is a standalone command, run deliberately. **Do not wire it into other scripts**
+as a `prebuild`/`predev` lifecycle hook — one command, invoked explicitly, beats the same thing
+duplicated across hidden hooks. `src/generated` is gitignored, so run it after a fresh clone and
+after every `schema.prisma` change; `npm run build` and `npm run dev` both fail on a missing client.
+
+**This project has no tests, by the author's choice.** There is no test suite and none is planned.
+Do not add `*.spec.ts` or `*.e2e-spec.ts` files, testing dependencies, or test scripts, and do not
+treat test coverage as part of "done" or offer it as a follow-up. Verify work with
+`npx tsc --noEmit`, `npm run lint`, and by actually running the app.
 
 `incremental` is on and `rootDir` is set, so **`tsBuildInfoFile` is pinned explicitly inside
 `dist/`** in both tsconfigs. Do not remove those pins. With `rootDir` set, TypeScript's default
