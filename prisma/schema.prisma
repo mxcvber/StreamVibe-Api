@@ -3,19 +3,530 @@
 // The datasource URL lives in prisma7.config.ts, not here: Prisma 7 deprecated
 // `url` inside the datasource block.
 //
-// No models yet. The schema and its row targets are designed together in a
-// later step, so this file intentionally declares only the datasource and the
-// generator.
+// Conventions that hold for every model below:
+//
+//   - Catalog tables (movies, people, genres, keywords, collections, credits)
+//     use the TMDB id as their primary key. TMDB is the only source of
+//     catalog data, and every child row in a TMDB payload already carries its
+//     parent's TMDB id, so the importer writes millions of credit rows with
+//     zero id lookups. The cost — id spaces would collide if a second catalog
+//     source ever appeared — is accepted because that is explicitly out of scope.
+//   - Tables and columns are snake_case via @@map/@map. Raw SQL, EXPLAIN output
+//     and psql are part of this project's learning goals, and `release_date`
+//     reads better than `"releaseDate"` in all of them.
+//   - Every timestamp is timestamptz. Prisma's default DateTime is `timestamp`
+//     WITHOUT time zone, which silently misbehaves the first time a seed script
+//     or `now()` in raw SQL meets a non-UTC session.
+//   - Join tables are explicit models. Prisma's implicit many-to-many creates
+//     `_GenreToMovie(A, B)`, which is unreadable in SQL and cannot take columns.
+//   - Prisma creates no indexes on foreign-key columns for PostgreSQL, so every
+//     FK that is queried gets an explicit @@index.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-
-  // This package is CommonJS (no "type": "module"), but the prisma-client
-  // generator emits ESM by default — which a nodenext CJS build cannot require.
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
+
+  // postgresqlExtensions: lets the datasource declare pg_trgm so migrations own
+  // CREATE EXTENSION. partialIndexes: the `where:` argument on @@index, used for
+  // the browse indexes on movies. Both are preview in 7.x; if partialIndexes ever
+  // misbehaves, dropping the `where:` arguments leaves working full indexes.
+  previewFeatures = ["postgresqlExtensions", "partialIndexes"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pg_trgm]
+}
+
+// ───────────────────────── Catalog (TMDB-owned) ─────────────────────────
+//
+// Which movies exist here is a snapshot of TMDB's most popular titles: the top N
+// ids by daily-export popularity at import time, loaded once (about an hour of
+// requests at N = 150k) and never refreshed — after the import finishes the app
+// makes no further TMDB requests, so popularity and vote_* are frozen at that
+// day's values. It is never a full mirror — that would be a multi-hour backfill
+// for rows that mostly cannot be rendered.
+//
+// Import invariant: a movie is stored only if TMDB marks it non-adult and it
+// has a poster, so every row is browsable and no `is_listed` flag is needed.
+// The import script enforces that and nothing re-checks it afterwards — there
+// are no later TMDB requests to notice a change — so no code path deletes a
+// movie once it is imported. The Cascade actions on the child relations exist
+// so a manual delete (psql, future admin tooling) stays referentially
+// consistent, not because anything in the app deletes movies.
+
+enum Gender {
+  UNKNOWN
+  FEMALE
+  MALE
+  NON_BINARY
+
+  @@map("gender")
+}
+
+enum CreditKind {
+  CAST
+  CREW
+
+  @@map("credit_kind")
+}
+
+model Movie {
+  id          Int       @id
+  title       String
+  overview    String?
+  tagline     String?
+  releaseDate DateTime? @map("release_date") @db.Date
+
+  // TMDB sends 0 for "unknown" on all three — the importer stores null instead so
+  // averages and sorts are not polluted by fake zeros. BigInt on budget/revenue
+  // because top revenues exceed 2^31; Prisma returns these as `bigint`, which
+  // JSON.stringify rejects, so the response layer converts (Number() is exact
+  // below 2^53).
+  runtime  Int?    @db.SmallInt
+  budget   BigInt?
+  revenue  BigInt?
+  homepage String?
+
+  // TMDB image *paths* ("/abc123.jpg"); the frontend builds image.tmdb.org URLs.
+  posterPath   String  @map("poster_path") @db.VarChar(64)
+  backdropPath String? @map("backdrop_path") @db.VarChar(64)
+
+  // YouTube video id of the one trailer the importer picks from
+  // /movie/{id}/videos: site YouTube, type Trailer (Teaser as fallback),
+  // official first, newest published_at as tie-break. Null when none qualifies.
+  trailerKey String? @map("trailer_key") @db.VarChar(32)
+
+  // ISO 3166-1 / ISO 639-1 codes. Arrays rather than join tables: these are
+  // displayed, never joined through.
+  originCountry String[] @map("origin_country")
+  popularity    Float    @default(0)
+  voteAverage   Float    @default(0) @map("vote_average")
+  voteCount     Int      @default(0) @map("vote_count")
+
+  // IMDb-style Bayesian rating, (v/(v+m))·R + (m/(v+m))·C, computed once at
+  // import. Sorting by raw vote_average surfaces 10.0 movies with two votes; this
+  // pulls low-vote movies toward the catalog mean, so "Top rated" needs neither a
+  // vote-count filter nor an extra index.
+  weightedRating Float @default(0) @map("weighted_rating")
+
+  // StreamVibe's own rating.
+  reviewCount Int @default(0) @map("review_count")
+  ratingSum   Int @default(0) @map("rating_sum")
+
+  collectionId Int?        @map("collection_id")
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  // When the detail fetch for this row completed. The resumable import job
+  // skips ids that already have one; nothing updates it afterwards.
+  syncedAt  DateTime @map("synced_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  genres         MovieGenre[]
+  keywords       MovieKeyword[]
+  credits        Credit[]
+  reviews        Review[]
+  watchlistItems WatchlistItem[]
+
+  // Browse orderings. `(sort DESC, id DESC)` is exactly the keyset a cursor page
+  // compares against, so each is an index-only walk. Every stored movie is
+  // browsable (see the section header), so only the new-releases index is
+  // partial: a DESC index puts NULLs first and cannot serve
+  // `ORDER BY release_date DESC NULLS LAST`, so the query carries the same
+  // `IS NOT NULL` predicate and the planner matches the partial index.
+  @@index([popularity(sort: Desc), id(sort: Desc)])
+  @@index([weightedRating(sort: Desc), id(sort: Desc)])
+  @@index([releaseDate(sort: Desc), id(sort: Desc)], where: raw("release_date IS NOT NULL"))
+  // Title search is trigram, not tsvector: ILIKE '%…%' and similarity() are what
+  // a search box needs, and both use these GIN indexes.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([collectionId])
+  @@map("movies")
+}
+
+model Collection {
+  id           Int      @id
+  name         String
+  posterPath   String?  @map("poster_path") @db.VarChar(64)
+  backdropPath String?  @map("backdrop_path") @db.VarChar(64)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  movies Movie[]
+
+  @@map("collections")
+}
+
+model Genre {
+  id   Int    @id
+  name String @unique @db.VarChar(64)
+
+  movies MovieGenre[]
+
+  @@map("genres")
+}
+
+model MovieGenre {
+  movieId Int @map("movie_id")
+  genreId Int @map("genre_id")
+
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@index([genreId])
+  @@map("movie_genres")
+}
+
+model Keyword {
+  id   Int    @id
+  name String @db.VarChar(255)
+
+  movies MovieKeyword[]
+
+  @@map("keywords")
+}
+
+model MovieKeyword {
+  movieId   Int @map("movie_id")
+  keywordId Int @map("keyword_id")
+
+  movie   Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  keyword Keyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, keywordId])
+  @@index([keywordId])
+  @@map("movie_keywords")
+}
+
+// People exist here only as credits reference them, with the fields the credits
+// payload carries. Biography, birthday and the like need one /person/{id} call
+// each and are deferred until a person page exists.
+model Person {
+  id                 Int      @id
+  name               String
+  gender             Gender   @default(UNKNOWN)
+  knownForDepartment String?  @map("known_for_department") @db.VarChar(32)
+  profilePath        String?  @map("profile_path") @db.VarChar(64)
+  popularity         Float    @default(0)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  credits Credit[]
+
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("people")
+}
+
+model Credit {
+  id       String     @id @db.VarChar(32)
+  movieId  Int        @map("movie_id")
+  personId Int        @map("person_id")
+  kind     CreditKind
+
+  character String?
+  order     Int?    @map("cast_order") @db.SmallInt
+
+  // Departments are a short fixed list; jobs are open-ended, so job is TEXT and
+  // an unattended import cannot die on a long value.
+  department String? @db.VarChar(32)
+  job        String?
+
+  movie  Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  // (movie, kind, order) serves both "top-billed cast" and "crew by job";
+  // (person) serves filmographies.
+  @@index([movieId, kind, order])
+  @@index([personId])
+  @@map("credits")
+}
+
+// ───────────────────────── Users & auth ─────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+
+  @@map("oauth_provider")
+}
+
+// Int ids rather than UUIDs: 4-byte keys keep the 20M-row watchlist and its
+// indexes small, seeding needs no id generation, and no public user page exists
+// where enumerable ids would matter — the API only ever serves /me/...
+model User {
+  id Int @id @default(autoincrement())
+
+  // Stored lowercase: the auth layer normalizes before every lookup and write
+  // and the seed generates lowercase, so the unique index can stay
+  // case-sensitive (no citext).
+  email        String   @unique @db.VarChar(255)
+  passwordHash String?  @map("password_hash") @db.VarChar(255)
+  displayName  String   @map("display_name") @db.VarChar(64)
+  avatarUrl    String?  @map("avatar_url")
+  role         UserRole @default(USER)
+
+  // Set at signup for OAuth accounts (the provider has verified the address) and
+  // by the email-verification flow for password accounts.
+  emailVerifiedAt  DateTime? @map("email_verified_at") @db.Timestamptz(3)
+  stripeCustomerId String?   @unique @map("stripe_customer_id") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
+  reviews       Review[]
+  watchlist     WatchlistItem[]
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+// Rotating refresh tokens. The client holds an opaque random token; only its
+// SHA-256 is stored, as the primary key, so a database leak reveals nothing
+// usable. Every token in one login chain shares a familyId: presenting an
+// already-rotated (revoked) token is treated as theft and revokes the family.
+model RefreshToken {
+  tokenHash String    @id @map("token_hash") @db.Char(64)
+  userId    Int       @map("user_id")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  // TEXT: user-agent strings are unbounded; in-app browsers exceed 255 chars.
+  userAgent String?   @map("user_agent")
+  ipAddress String?   @map("ip_address") @db.VarChar(45)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  // For the job that purges expired rows.
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// Links a Google/GitHub identity to a user. Provider access tokens are not
+// stored: the providers are used for sign-in only, never for calling their APIs.
+model OAuthAccount {
+  provider          OAuthProvider
+  providerAccountId String        @map("provider_account_id") @db.VarChar(255)
+  userId            Int           @map("user_id")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+// ───────────────────────── User activity (seeded at scale) ─────────────────────────
+
+// One row per (user, movie). rating is 1–5 stars (TMDB's 0–10 stays in
+// movies.vote_average); the range is enforced by the request DTO and by a
+// CHECK constraint added by hand to the init migration — Prisma cannot declare
+// one here, and a raw-SQL seed would otherwise bypass the DTO.
+model Review {
+  id      Int     @id @default(autoincrement())
+  userId  Int     @map("user_id")
+  movieId Int     @map("movie_id")
+  rating  Int     @db.SmallInt
+  title   String? @db.VarChar(120)
+  body    String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Restrict, not Cascade: movies.review_count / rating_sum are maintained by
+  // the app, and a cascade would remove reviews inside Postgres without touching
+  // them. Deleting an account is therefore one explicit transaction — a grouped
+  // decrement of the counters, deleteMany on the reviews, then the user — and
+  // Restrict makes a user.delete that skipped that fail loudly instead of
+  // drifting the averages. The movie side stays Cascade: the row whose counters
+  // would drift is the one being deleted.
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movieId])
+  // A movie's reviews, newest first, cursor-paginated on (created_at, id).
+  @@index([movieId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("reviews")
+}
+
+// No (movie_id) index on purpose: nothing queries watchlists by movie, and no
+// code path deletes a movie after import (see the catalog header), so the FK is
+// never walked from that side. A one-off manual delete would seq-scan this
+// table once, which is acceptable; a second b-tree over 20M rows is not worth
+// paying for that. Add it together with a watchlist counter on movies if a
+// "most wanted" row is ever built.
+model WatchlistItem {
+  userId    Int      @map("user_id")
+  movieId   Int      @map("movie_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@id([userId, movieId])
+  @@map("watchlist_items")
+}
+
+// ───────────────────────── Subscriptions (Stripe mirror) ─────────────────────────
+//
+// Stripe is the source of truth; these rows mirror it so the entitlement guard
+// and the pricing page never call Stripe on the request path.
+
+enum BillingInterval {
+  MONTH
+  YEAR
+
+  @@map("billing_interval")
+}
+
+// Stripe's subscription statuses, verbatim.
+enum SubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+
+  @@map("subscription_status")
+}
+
+// One row per Stripe Product (basic / standard / premium).
+model Plan {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique @db.VarChar(32)
+  name            String   @db.VarChar(64)
+  description     String?
+  // Bullet points for the pricing page.
+  features        String[]
+  stripeProductId String?  @unique @map("stripe_product_id") @db.VarChar(64)
+  sortOrder       Int      @default(0) @map("sort_order") @db.SmallInt
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  prices PlanPrice[]
+
+  @@map("plans")
+}
+
+// One row per Stripe Price. Stripe prices are immutable, so a price change is a
+// new row with the old one deactivated — which is why (plan, interval) is not
+// unique.
+model PlanPrice {
+  id       Int             @id @default(autoincrement())
+  planId   Int             @map("plan_id")
+  interval BillingInterval
+
+  // Minor units (cents) and lower-case ISO 4217, exactly as Stripe reports them.
+  unitAmount Int    @map("unit_amount")
+  currency   String @db.Char(3)
+
+  stripePriceId String   @unique @map("stripe_price_id") @db.VarChar(64)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscriptions Subscription[]
+
+  @@index([planId])
+  @@map("plan_prices")
+}
+
+// Mirror of a Stripe subscription, written by the webhook handler. "At most one
+// live subscription per user" is enforced in the checkout flow, deliberately not
+// as a partial unique index: the webhook must always be able to record whatever
+// Stripe says happened.
+model Subscription {
+  id                   Int    @id @default(autoincrement())
+  userId               Int    @map("user_id")
+  planPriceId          Int    @map("plan_price_id")
+  stripeSubscriptionId String @unique @map("stripe_subscription_id") @db.VarChar(64)
+
+  status SubscriptionStatus
+
+  currentPeriodStart DateTime @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd   DateTime @map("current_period_end") @db.Timestamptz(3)
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+
+  canceledAt DateTime? @map("canceled_at") @db.Timestamptz(3)
+  endedAt    DateTime? @map("ended_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planPrice PlanPrice @relation(fields: [planPriceId], references: [id], onDelete: Restrict)
+
+  // The entitlement guard's lookup.
+  @@index([userId, status])
+  @@index([planPriceId])
+  @@map("subscriptions")
+}
+
+// Webhook idempotency: Stripe retries deliveries, and the event id is the key
+// that makes a redelivery a no-op. The payload is kept for replay and debugging;
+// volume is small.
+model StripeWebhookEvent {
+  id          String    @id @db.VarChar(64)
+  type        String    @db.VarChar(64)
+  payload     Json
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+  error       String?
+
+  @@map("stripe_webhook_events")
+}
+
+// ───────────────────────── TMDB import bookkeeping ─────────────────────────
+//
+// One-time import only: there is no recurring sync, so a run is a record of
+// progress for resuming after a crash and of what failed, nothing more.
+
+enum SyncRunType {
+  // /genre/movie/list → genres.
+  GENRE_SYNC
+  // Detail fetch for the top-N ids from the daily export, run once. The export
+  // is loaded into a TEMP table, so no staging table lives in this schema.
+  MOVIE_BACKFILL
+
+  @@map("sync_run_type")
+}
+
+enum SyncRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("sync_run_status")
+}
+
+model SyncRun {
+  id         Int           @id @default(autoincrement())
+  type       SyncRunType
+  status     SyncRunStatus @default(RUNNING)
+  processed  Int           @default(0)
+  failed     Int           @default(0)
+  error      String?
+  startedAt  DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime?     @map("finished_at") @db.Timestamptz(3)
+
+  @@index([type, startedAt(sort: Desc)])
+  @@map("sync_runs")
 }
