@@ -48,13 +48,17 @@ datasource db {
 // day's values. It is never a full mirror — that would be a multi-hour backfill
 // for rows that mostly cannot be rendered.
 //
-// Import invariant: a movie is stored only if TMDB marks it non-adult and it
-// has a poster, so every row is browsable and no `is_listed` flag is needed.
-// The import script enforces that and nothing re-checks it afterwards — there
-// are no later TMDB requests to notice a change — so no code path deletes a
-// movie once it is imported. The Cascade actions on the child relations exist
-// so a manual delete (psql, future admin tooling) stays referentially
-// consistent, not because anything in the app deletes movies.
+// Import invariant: a movie is stored only if TMDB marks it non-adult, it has
+// a poster and it has a YouTube trailer, so every row is browsable *and
+// playable* and no `is_listed` flag is needed. The trailer rule is the
+// expensive one — availability falls from ~90% among the top 5k titles to
+// ~20% past rank 100k, so the top 150k ids yield ~50k movies rather than
+// ~130k; that trade was made knowingly — a title that cannot play is worse
+// than no title. The import script enforces all three and nothing re-checks
+// them afterwards — there are no later TMDB requests to notice a change — so
+// no code path deletes a movie once it is imported. The Cascade actions on the
+// child relations exist so a manual delete (psql, future admin tooling) stays
+// referentially consistent, not because anything in the app deletes movies.
 
 enum Gender {
   UNKNOWN
@@ -93,10 +97,15 @@ model Movie {
   posterPath   String  @map("poster_path") @db.VarChar(64)
   backdropPath String? @map("backdrop_path") @db.VarChar(64)
 
-  // YouTube video id of the one trailer the importer picks from
-  // /movie/{id}/videos: site YouTube, type Trailer (Teaser as fallback),
-  // official first, newest published_at as tie-break. Null when none qualifies.
-  trailerKey String? @map("trailer_key") @db.VarChar(32)
+  // YouTube video id of the one trailer the importer picks from the movie's
+  // videos: site YouTube, official Trailer → any Trailer → official Teaser →
+  // any Teaser, newest published_at as tie-break — over the English-tagged
+  // and untagged videos first, then, for a non-English film with none, its
+  // original-language videos (TMDB serves videos per language; that costs one
+  // extra request).
+  // NOT NULL like poster_path: a movie with no qualifying video is not
+  // imported at all, so the frontend never needs a no-trailer state.
+  trailerKey String @map("trailer_key") @db.VarChar(32)
 
   // ISO 3166-1 / ISO 639-1 codes. Arrays rather than join tables: these are
   // displayed, never joined through.
@@ -498,12 +507,14 @@ model StripeWebhookEvent {
 //
 // One-time import only: there is no recurring sync, so a run is a record of
 // progress for resuming after a crash and of what failed, nothing more.
+// `npm run import:tmdb` (src/tmdb-import) is the only writer.
 
 enum SyncRunType {
   // /genre/movie/list → genres.
   GENRE_SYNC
   // Detail fetch for the top-N ids from the daily export, run once. The export
-  // is loaded into a TEMP table, so no staging table lives in this schema.
+  // is streamed and sorted in-process (cached under .tmp/), so no staging table
+  // lives in this schema.
   MOVIE_BACKFILL
 
   @@map("sync_run_type")
@@ -518,14 +529,30 @@ enum SyncRunStatus {
 }
 
 model SyncRun {
-  id         Int           @id @default(autoincrement())
-  type       SyncRunType
-  status     SyncRunStatus @default(RUNNING)
-  processed  Int           @default(0)
-  failed     Int           @default(0)
-  error      String?
-  startedAt  DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
-  finishedAt DateTime?     @map("finished_at") @db.Timestamptz(3)
+  id     Int           @id @default(autoincrement())
+  type   SyncRunType
+  status SyncRunStatus @default(RUNNING)
+
+  // For MOVIE_BACKFILL, `processed` is the resume cursor: how many ids of the
+  // popularity-ordered candidate list have been consumed, rejected ones
+  // included. It advances in the same transaction that writes a chunk, so a
+  // crash can never leave it ahead of the data. `failed_ids` are the ids
+  // behind the cursor whose fetch failed (network, retries exhausted), written
+  // in that same transaction so a resumed run still retries them once the
+  // list is done; after that pass they hold what is still failing, and those
+  // movies are simply absent. `failed` is their count.
+  processed Int     @default(0)
+  failed    Int     @default(0)
+  failedIds Int[]   @default([]) @map("failed_ids")
+  error     String?
+
+  // Which daily export (movie_ids_MM_DD_YYYY.json.gz) a MOVIE_BACKFILL run
+  // ranked its candidates from. A resumed run must re-read the same file, or
+  // the cursor points into a different ordering. Null for GENRE_SYNC.
+  exportDate DateTime? @map("export_date") @db.Date
+
+  startedAt  DateTime  @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
 
   @@index([type, startedAt(sort: Desc)])
   @@map("sync_runs")
