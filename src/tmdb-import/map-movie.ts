@@ -98,10 +98,13 @@ export interface MappedMovie {
  * primary key is the TMDB id, so nothing here looks anything up. The trailer
  * key arrives already resolved: choosing it may take a second request
  * (TmdbImportService.resolveTrailerKey), which does not belong in a mapper.
+ * So do the genre ids, already filtered to known genres by the check that
+ * decides whether the movie is stored at all.
  */
 export function mapMovie(
   details: StorableMovieDetails,
   trailerKey: string,
+  genreIds: number[],
   syncedAt: Date,
 ): MappedMovie {
   // First occurrence wins when the same person is in cast and crew — the
@@ -177,7 +180,7 @@ export function mapMovie(
           ),
         }
       : null,
-    genreIds: (details.genres ?? []).map((genre) => genre.id),
+    genreIds,
     keywords: (details.keywords?.keywords ?? []).map((keyword) => ({
       id: keyword.id,
       name: clip(keyword.name, KEYWORD_NAME_MAX_LENGTH),

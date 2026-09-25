@@ -49,16 +49,17 @@ datasource db {
 // for rows that mostly cannot be rendered.
 //
 // Import invariant: a movie is stored only if TMDB marks it non-adult, it has
-// a poster and it has a YouTube trailer, so every row is browsable *and
-// playable* and no `is_listed` flag is needed. The trailer rule is the
-// expensive one — availability falls from ~90% among the top 5k titles to
-// ~20% past rank 100k, so the top 150k ids yield ~50k movies rather than
-// ~130k; that trade was made knowingly — a title that cannot play is worse
-// than no title. The import script enforces all three and nothing re-checks
-// them afterwards — there are no later TMDB requests to notice a change — so
-// no code path deletes a movie once it is imported. The Cascade actions on the
-// child relations exist so a manual delete (psql, future admin tooling) stays
-// referentially consistent, not because anything in the app deletes movies.
+// a poster, at least one genre and a YouTube trailer, so every row is
+// browsable *and playable* and no `is_listed` flag is needed. The trailer
+// rule is the expensive one — availability falls from ~90% among the top 5k
+// titles to ~20% past rank 100k, so the top 150k ids yield ~50k movies
+// rather than ~130k; that trade was made knowingly — a title that cannot play
+// is worse than no title. The import script enforces all four and nothing
+// re-checks them afterwards — there are no later TMDB requests to notice a
+// change — so no code path deletes a movie once it is imported. The Cascade
+// actions on the child relations exist so a manual delete (psql, future admin
+// tooling) stays referentially consistent, not because anything in the app
+// deletes movies.
 
 enum Gender {
   UNKNOWN
@@ -133,6 +134,8 @@ model Movie {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  // At least one per movie. An import rule, not a constraint: Postgres cannot
+  // require a minimum number of rows in another table.
   genres         MovieGenre[]
   keywords       MovieKeyword[]
   credits        Credit[]

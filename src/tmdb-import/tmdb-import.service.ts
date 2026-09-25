@@ -33,6 +33,8 @@ interface Stats {
   examined: number;
   stored: number;
   noPoster: number;
+  /** No genre from /genre/movie/list. */
+  noGenre: number;
   /** No trailer or teaser in English, untagged or original-language videos. */
   noTrailer: number;
   adult: number;
@@ -213,6 +215,7 @@ export class TmdbImportService {
       examined: 0,
       stored: 0,
       noPoster: 0,
+      noGenre: 0,
       noTrailer: 0,
       adult: 0,
       missing: 0,
@@ -301,7 +304,8 @@ export class TmdbImportService {
     this.logger.log(
       `Done in ${formatDuration((Date.now() - startedAt) / 1000)}: ` +
         `${stats.examined} fetched, ${stats.stored} stored, ` +
-        `${stats.noPoster} without poster, ${stats.noTrailer} without trailer, ` +
+        `${stats.noPoster} without poster, ${stats.noGenre} without genre, ` +
+        `${stats.noTrailer} without trailer, ` +
         `${stats.adult} adult, ` +
         `${stats.missing} missing, ${stats.failed} failed, ` +
         `${stats.skipped} already imported; ` +
@@ -333,11 +337,8 @@ export class TmdbImportService {
           continue;
         }
         try {
-          const mapped = await this.fetchOne(id, stats, syncedAt);
+          const mapped = await this.fetchOne(id, stats, syncedAt, genreIds);
           if (mapped) {
-            mapped.genreIds = mapped.genreIds.filter((genreId) =>
-              genreIds.has(genreId),
-            );
             movies.push(mapped);
             stored.add(id);
           }
@@ -376,12 +377,13 @@ export class TmdbImportService {
     return { movies, failedIds };
   }
 
-  // Null when the id is rejected (gone, adult, no poster, no trailer); throws
-  // on failure.
+  // Null when the id is rejected (gone, adult, no poster, no genre, no
+  // trailer); throws on failure.
   private async fetchOne(
     id: number,
     stats: Stats,
     syncedAt: Date,
+    genreIds: Set<number>,
   ): Promise<MappedMovie | null> {
     const details = await this.client.getMovie(id);
     this.consecutiveFailures = 0;
@@ -400,7 +402,18 @@ export class TmdbImportService {
       return null;
     }
 
-    // The third leg of the import invariant, checked last because it may
+    // Only ids from /genre/movie/list count: movie_genres.genre_id references
+    // genres. Checked before the trailer, so a rejected movie never costs the
+    // second request.
+    const movieGenreIds = (details.genres ?? [])
+      .map((genre) => genre.id)
+      .filter((genreId) => genreIds.has(genreId));
+    if (movieGenreIds.length === 0) {
+      stats.noGenre++;
+      return null;
+    }
+
+    // The trailer is the last leg of the import invariant because it may
     // cost a second request: no playable trailer, no row.
     const trailerKey = await this.resolveTrailerKey(details, stats);
     if (!trailerKey) {
@@ -409,7 +422,7 @@ export class TmdbImportService {
     }
 
     stats.stored++;
-    return mapMovie(details, trailerKey, syncedAt);
+    return mapMovie(details, trailerKey, movieGenreIds, syncedAt);
   }
 
   // The English-tagged and untagged videos came with the details. When they
@@ -468,7 +481,7 @@ export class TmdbImportService {
       `chunk ${progress.chunkNumber}/${progress.totalChunks} · ` +
         `cursor ${progress.cursor}/${progress.total} · ` +
         `stored ${stats.stored} · no poster ${stats.noPoster} · ` +
-        `no trailer ${stats.noTrailer} · ` +
+        `no genre ${stats.noGenre} · no trailer ${stats.noTrailer} · ` +
         `adult ${stats.adult} · missing ${stats.missing} · ` +
         `failed ${stats.failed} · skipped ${stats.skipped} · ` +
         `${requestsPerSecond.toFixed(1)} req/s · ETA ${formatDuration(eta)}`,
