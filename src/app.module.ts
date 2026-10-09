@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { envSchema } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
+import { CarouselModule } from './carousel/carousel.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
       validationSchema: envSchema,
     }),
     PrismaModule,
+    CarouselModule,
   ],
   controllers: [AppController],
   providers: [AppService],
