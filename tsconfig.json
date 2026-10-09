@@ -20,7 +20,11 @@
     "incremental": true,
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "skipLibCheck": true,
-    "strictNullChecks": true,
+    // Explicit, not defaulted: TypeScript 6 (the version VS Code bundles)
+    // turns strict on by default and this project's 5.9 does not, so leaving
+    // it unset made the editor and `tsc` disagree. noImplicitAny and
+    // strictBindCallApply below are the two deliberate exceptions.
+    "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
