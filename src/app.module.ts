@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { envSchema } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
 import { CarouselModule } from './carousel/carousel.module';
+import { MoviesModule } from './movies/movies.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CarouselModule } from './carousel/carousel.module';
     }),
     PrismaModule,
     CarouselModule,
+    MoviesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
