@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from './dto/movie-list.dto';
+import { MovieListDto } from '../common/dto/movie-list.dto';
 import { movieRatingWhere } from './movie-rating-filter';
 import { movieSortQuery } from './movie-sort';
 

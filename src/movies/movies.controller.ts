@@ -1,6 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from './dto/movie-list.dto';
+import { MovieListDto } from '../common/dto/movie-list.dto';
 import { MoviesService } from './movies.service';
 
 @Controller('movies')
