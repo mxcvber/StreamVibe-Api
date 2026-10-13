@@ -6,7 +6,6 @@ import { envSchema } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
 import { CarouselModule } from './carousel/carousel.module';
 import { MoviesModule } from './movies/movies.module';
-import { GenresModule } from './genres/genres.module';
 
 @Module({
   imports: [
@@ -19,7 +18,6 @@ import { GenresModule } from './genres/genres.module';
     PrismaModule,
     CarouselModule,
     MoviesModule,
-    GenresModule,
   ],
   controllers: [AppController],
   providers: [AppService],
