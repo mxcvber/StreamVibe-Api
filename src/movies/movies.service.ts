@@ -87,11 +87,7 @@ export class MoviesService {
     genreId: number,
     { cursor, limit }: CursorPageQueryDto,
   ): Promise<MovieListDto> {
-    const genre = await this.prisma.genre.findUnique({
-      where: { id: genreId },
-      select: { id: true },
-    });
-    if (!genre) throw new NotFoundException(`Genre ${genreId} not found`);
+    await this.assertGenreExists(genreId);
 
     // The cursor movie's release date, for the index bound below.
     const cursorMovie =
@@ -150,13 +146,18 @@ export class MoviesService {
   }
 
   /**
-   * The 10 most popular movies, most popular first.
+   * A genre's 10 most popular movies, most popular first.
    *
    * `(popularity DESC, id DESC)` matches the movies browse index exactly, so
-   * Postgres reads the first 10 entries of that index and stops — no sort.
+   * Postgres walks that index with no sort. The genre filter is an EXISTS on
+   * movie_genres checked per row of that walk, so a rare genre reads further
+   * down the index before it has 10 — negligible at the catalog's ~4.5k movies.
    */
-  async findTopTenMovies(): Promise<TopTenMoviesDto> {
+  async findTopTenMoviesByGenre(genreId: number): Promise<TopTenMoviesDto> {
+    await this.assertGenreExists(genreId);
+
     const items = await this.prisma.movie.findMany({
+      where: { genres: { some: { genreId } } },
       // id breaks popularity ties.
       orderBy: [{ popularity: 'desc' }, { id: 'desc' }],
       take: 10,
@@ -169,5 +170,14 @@ export class MoviesService {
     });
 
     return { items };
+  }
+
+  /** A 404 for an unknown genre id, rather than an empty list. */
+  private async assertGenreExists(genreId: number): Promise<void> {
+    const genre = await this.prisma.genre.findUnique({
+      where: { id: genreId },
+      select: { id: true },
+    });
+    if (!genre) throw new NotFoundException(`Genre ${genreId} not found`);
   }
 }

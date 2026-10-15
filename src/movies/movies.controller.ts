@@ -23,8 +23,11 @@ export class MoviesController {
     return this.moviesService.findMoviesByGenre(id, query);
   }
 
-  @Get('top-10')
-  findTopTenMovies(): Promise<TopTenMoviesDto> {
-    return this.moviesService.findTopTenMovies();
+  /** A genre's 10 most popular movies. `id` is the TMDB genre id. */
+  @Get(':id/genre/top-10')
+  findTopTenMoviesByGenre(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<TopTenMoviesDto> {
+    return this.moviesService.findTopTenMoviesByGenre(id);
   }
 }

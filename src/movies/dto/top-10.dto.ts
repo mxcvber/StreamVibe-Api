@@ -1,4 +1,4 @@
-// Response of GET /api/v1/movies/top-10.
+// Response of GET /api/v1/movies/:id/genre/top-10.
 //
 // `!` because nothing constructs these: the service returns plain objects
 // typed as them, and they are classes only so the Swagger plugin can read
