@@ -12,6 +12,7 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
     "import:tmdb": "node dist/cli/import-tmdb",
+    "openapi": "node dist/cli/generate-openapi",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",

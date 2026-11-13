@@ -1,0 +1,786 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/api/v1/carousel/top-in-genres": {
+      "get": {
+        "operationId": "CarouselController_findTopMoviePosters",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopInGenresDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Carousel"
+        ]
+      }
+    },
+    "/api/v1/carousel/popular": {
+      "get": {
+        "operationId": "CarouselController_findPopularMovies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PopularMoviesDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Carousel"
+        ]
+      }
+    },
+    "/api/v1/carousel/new-releases": {
+      "get": {
+        "operationId": "CarouselController_findNewReleases",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewReleasesDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Carousel"
+        ]
+      }
+    },
+    "/api/v1/carousel/must-watch": {
+      "get": {
+        "operationId": "CarouselController_findMustWatchMovies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MustWatchMoviesDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Carousel"
+        ]
+      }
+    },
+    "/api/v1/movies": {
+      "get": {
+        "operationId": "MoviesController_findAll",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Movies per page.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Order of the list. `newest` lists upcoming movies only, soonest first.",
+            "schema": {
+              "default": "popular",
+              "type": "string",
+              "enum": [
+                "popular",
+                "top-rated",
+                "newest"
+              ]
+            }
+          },
+          {
+            "name": "rating",
+            "required": false,
+            "in": "query",
+            "description": "Only movies whose card shows this many stars or half a star more, from\nat least 30 TMDB votes.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 5,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "The `nextCursor` of the previous page; omit it for the first page.",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieListDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Movies"
+        ]
+      }
+    },
+    "/api/v1/movies/{id}": {
+      "get": {
+        "operationId": "MoviesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One movie's page, minus its reviews. `id` is the TMDB movie id.",
+        "tags": [
+          "Movies"
+        ]
+      }
+    },
+    "/api/v1/movies/{id}/genre": {
+      "get": {
+        "operationId": "MoviesController_findMoviesByGenre",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Movies per page.",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "The `nextCursor` of the previous page; omit it for the first page.",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A genre's released movies, newest first. `id` is the TMDB genre id.",
+        "tags": [
+          "Movies"
+        ]
+      }
+    },
+    "/api/v1/movies/{id}/genre/top-10": {
+      "get": {
+        "operationId": "MoviesController_findTopTenMoviesByGenre",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopTenMoviesDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A genre's 10 most popular movies. `id` is the TMDB genre id.",
+        "tags": [
+          "Movies"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "StreamVibe API",
+    "description": "Movie catalog and discovery API. Movie data and images are provided by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "MoviePosterDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath"
+        ]
+      },
+      "GenreDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB genre id."
+          },
+          "name": {
+            "type": "string"
+          },
+          "movies": {
+            "description": "Most popular first; empty for a genre with no movies.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MoviePosterDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "movies"
+        ]
+      },
+      "TopInGenresDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "PopularMovieDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "runtime": {
+            "type": "number",
+            "nullable": true,
+            "description": "Minutes; null when TMDB had no runtime (it sends 0, the importer stores null)."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath",
+          "runtime"
+        ]
+      },
+      "PopularMoviesDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Most popular first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PopularMovieDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "NewReleaseMovieDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "releaseDate": {
+            "type": "string",
+            "description": "\"YYYY-MM-DD\" — a calendar date, so no timestamp to shift across time zones."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath",
+          "releaseDate"
+        ]
+      },
+      "NewReleasesDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Newest first; already released only.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewReleaseMovieDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "MustWatchMovieDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "runtime": {
+            "type": "number",
+            "nullable": true,
+            "description": "Minutes; null when TMDB had no runtime (it sends 0, the importer stores null)."
+          },
+          "voteAverage": {
+            "type": "number",
+            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+          },
+          "voteCount": {
+            "type": "number",
+            "description": "TMDB vote count, raw; the frontend abbreviates it (\"20K\")."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath",
+          "runtime",
+          "voteAverage",
+          "voteCount"
+        ]
+      },
+      "MustWatchMoviesDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Highest weighted rating first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MustWatchMovieDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "MovieListItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "releaseDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "\"YYYY-MM-DD\"; null when TMDB had no release date."
+          },
+          "voteAverage": {
+            "type": "number",
+            "description": "TMDB average, 0–10."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath",
+          "releaseDate",
+          "voteAverage"
+        ]
+      },
+      "MovieListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "In the route's order: the requested `sort` on /movies, newest first on a genre.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovieListItemDto"
+            }
+          },
+          "nextCursor": {
+            "type": "number",
+            "nullable": true,
+            "description": "Pass as `cursor` to get the next page; null on the last page."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "GenreTagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB genre id."
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "CastMemberDto": {
+        "type": "object",
+        "properties": {
+          "character": {
+            "type": "string",
+            "nullable": true,
+            "description": "The role; null when TMDB names none."
+          },
+          "id": {
+            "type": "number",
+            "description": "TMDB person id."
+          },
+          "name": {
+            "type": "string"
+          },
+          "profilePath": {
+            "type": "string",
+            "nullable": true,
+            "description": "TMDB image path; null when TMDB has no photo."
+          }
+        },
+        "required": [
+          "character",
+          "id",
+          "name",
+          "profilePath"
+        ]
+      },
+      "CrewMemberDto": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "description": "This person's key jobs on the movie, highest-ranked first.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "number",
+            "description": "TMDB person id."
+          },
+          "name": {
+            "type": "string"
+          },
+          "profilePath": {
+            "type": "string",
+            "nullable": true,
+            "description": "TMDB image path; null when TMDB has no photo."
+          }
+        },
+        "required": [
+          "jobs",
+          "id",
+          "name",
+          "profilePath"
+        ]
+      },
+      "MovieDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "tagline": {
+            "type": "string",
+            "nullable": true
+          },
+          "overview": {
+            "type": "string",
+            "nullable": true
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "backdropPath": {
+            "type": "string",
+            "nullable": true,
+            "description": "Landscape hero image; null for a few movies — use the poster then."
+          },
+          "trailerKey": {
+            "type": "string",
+            "description": "YouTube video id of the trailer."
+          },
+          "releaseDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "\"YYYY-MM-DD\"; null when TMDB had no release date."
+          },
+          "runtime": {
+            "type": "number",
+            "nullable": true,
+            "description": "Minutes; null when unknown."
+          },
+          "budget": {
+            "type": "number",
+            "nullable": true,
+            "description": "Null when unknown, as is revenue."
+          },
+          "revenue": {
+            "type": "number",
+            "nullable": true
+          },
+          "homepage": {
+            "type": "string",
+            "nullable": true
+          },
+          "originCountry": {
+            "description": "ISO 3166-1 codes, e.g. \"IN\".",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "voteAverage": {
+            "type": "number",
+            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+          },
+          "streamVibeRating": {
+            "type": "number",
+            "nullable": true,
+            "description": "StreamVibe review average, 1–5; null until the movie has a review."
+          },
+          "reviewCount": {
+            "type": "number"
+          },
+          "genres": {
+            "description": "By name.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreTagDto"
+            }
+          },
+          "cast": {
+            "description": "Top-billed, lead first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastMemberDto"
+            }
+          },
+          "crew": {
+            "description": "Key jobs only, one entry per person.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrewMemberDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "tagline",
+          "overview",
+          "posterPath",
+          "backdropPath",
+          "trailerKey",
+          "releaseDate",
+          "runtime",
+          "budget",
+          "revenue",
+          "homepage",
+          "originCountry",
+          "voteAverage",
+          "streamVibeRating",
+          "reviewCount",
+          "genres",
+          "cast",
+          "crew"
+        ]
+      },
+      "TopTenMovieDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "TMDB movie id."
+          },
+          "title": {
+            "type": "string"
+          },
+          "posterPath": {
+            "type": "string",
+            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+          },
+          "voteAverage": {
+            "type": "number",
+            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "posterPath",
+          "voteAverage"
+        ]
+      },
+      "TopTenMoviesDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Most popular first.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopTenMovieDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      }
+    }
+  }
+}

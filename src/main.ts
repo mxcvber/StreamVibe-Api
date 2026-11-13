@@ -1,8 +1,9 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { API_PREFIX, createOpenApiDocument } from './openapi';
 
 async function bootstrap() {
   // Stripe verifies webhook signatures against the unparsed body, so the raw
@@ -12,10 +13,10 @@ async function bootstrap() {
 
   // The web repo's API_URL points here. A plain prefix rather than
   // enableVersioning(): the URLs are the same, and switching to URI versioning
-  // later would not change them. It has to be set before createDocument below,
-  // which reads it when building the documented paths; SwaggerModule.setup is
-  // not prefixed, so the docs stay at /docs.
-  app.setGlobalPrefix('api/v1');
+  // later would not change them. It has to be set before createOpenApiDocument
+  // below, which reads it when building the documented paths; SwaggerModule.setup
+  // is not prefixed, so the docs stay at /docs.
+  app.setGlobalPrefix(API_PREFIX);
 
   // whitelist drops properties no DTO declares. transform hands handlers the
   // DTO instance instead of the raw object — without it, query params arrive
@@ -24,20 +25,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('StreamVibe API')
-    .setDescription(
-      'Movie catalog and discovery API. Movie data and images are provided by ' +
-        'TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.',
-    )
-    .setVersion('1.0')
-    .build();
-
-  SwaggerModule.setup(
-    'docs',
-    app,
-    SwaggerModule.createDocument(app, swaggerConfig),
-  );
+  SwaggerModule.setup('docs', app, createOpenApiDocument(app));
 
   // Lets Nest react to SIGINT/SIGTERM, which is what invokes onModuleDestroy and
   // therefore PrismaService's $disconnect(). Off by default.

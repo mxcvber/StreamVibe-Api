@@ -25,6 +25,7 @@ choice is expensive to reverse, surface the trade-off instead of just picking on
 | `npm run generate`     | `prisma generate` → Prisma Client into `src/generated/prisma`     |
 | `npm run migrate`      | `prisma migrate dev` — create + apply a migration (no generate)   |
 | `npm run import:tmdb`  | One-time TMDB catalog import (see below) — needs `npm run build`  |
+| `npm run openapi`      | Write `openapi.json` (see below) — needs a current `dist/`        |
 | `npm run start:prod`   | `node dist/main`                                                  |
 | `npm run lint`         | ESLint **with `--fix`** — it rewrites files                       |
 | `npx tsc --noEmit`     | Type-check only                                                   |
@@ -43,6 +44,16 @@ after every `schema.prisma` change; `npm run build` and `npm run dev` both fail 
 client. SQL Prisma cannot express (CHECK constraints) goes in by hand:
 `npx prisma migrate dev --create-only --name x`, edit the file, then `npm run migrate`. Never
 edit a migration after it has been applied — the checksum mismatch forces a reset.
+
+`npm run openapi` writes `openapi.json` at the repo root: the OpenAPI document of every route,
+the API contract for `../web` to generate its response types from. **Regenerate it after
+changing a DTO, a controller's return type or a route.** The schemas come from the
+`@nestjs/swagger` CLI plugin in `nest-cli.json` (`introspectComments` on, so DTO JSDoc becomes
+the descriptions), which only runs inside `nest build`. So the command runs against `dist/`, like
+`import:tmdb`, and needs no database. `src/openapi.ts` builds the document for both `/docs` and
+the file, so the two cannot drift. After changing the plugin's options, restart `npm run dev` (or
+run `npm run build`): the watcher does not re-emit files whose source has not changed, so `dist/`
+keeps DTOs compiled with the old options.
 
 **This project has no tests, by the author's choice.** There is no test suite and none is planned.
 Do not add `*.spec.ts` or `*.e2e-spec.ts` files, testing dependencies, or test scripts, and do not
