@@ -57,3 +57,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.tsbuildinfo
 
 /src/generated
+
+
+# claude code local settings
+.claude/settings.local.json
