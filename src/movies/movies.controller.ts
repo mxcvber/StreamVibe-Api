@@ -4,6 +4,7 @@ import { MovieListDto } from '../common/dto/movie-list.dto';
 import { MoviesService } from './movies.service';
 import { CursorPageQueryDto } from '../common/dto/cursor-page-query.dto';
 import { TopTenMoviesDto } from './dto/top-10.dto';
+import { MovieDetailDto } from './dto/movie-detail.dto';
 
 @Controller('movies')
 export class MoviesController {
@@ -12,6 +13,12 @@ export class MoviesController {
   @Get()
   findAll(@Query() query: ListMoviesQueryDto): Promise<MovieListDto> {
     return this.moviesService.findAll(query);
+  }
+
+  /** One movie's page, minus its reviews. `id` is the TMDB movie id. */
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<MovieDetailDto> {
+    return this.moviesService.findOne(id);
   }
 
   /** A genre's released movies, newest first. `id` is the TMDB genre id. */

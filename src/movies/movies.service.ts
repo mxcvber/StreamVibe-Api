@@ -6,6 +6,8 @@ import { movieRatingWhere } from './movie-rating-filter';
 import { movieSortQuery } from './movie-sort';
 import { CursorPageQueryDto } from '../common/dto/cursor-page-query.dto';
 import { TopTenMoviesDto } from './dto/top-10.dto';
+import { MovieDetailDto } from './dto/movie-detail.dto';
+import { movieCreditsWhere, toCastAndCrew } from './movie-credits';
 
 @Injectable()
 export class MoviesService {
@@ -68,6 +70,81 @@ export class MoviesService {
         releaseDate: releaseDate?.toISOString().slice(0, 10) ?? null,
       })),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+    };
+  }
+
+  /**
+   * Everything the movie page shows except its reviews, which page separately.
+   *
+   * The movie by primary key, its genres, and only the credits the page shows
+   * (see movieCreditsWhere) — TMDB lists up to ~1,000 crew per movie.
+   */
+  async findOne(id: number): Promise<MovieDetailDto> {
+    const movie = await this.prisma.movie.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        tagline: true,
+        overview: true,
+        posterPath: true,
+        backdropPath: true,
+        trailerKey: true,
+        releaseDate: true,
+        runtime: true,
+        budget: true,
+        revenue: true,
+        homepage: true,
+        originCountry: true,
+        voteAverage: true,
+        reviewCount: true,
+        ratingSum: true,
+        genres: {
+          // `genres` holds movie_genres join rows, so sort by the genre each
+          // one points to.
+          orderBy: { genre: { name: 'asc' } },
+          select: { genre: { select: { id: true, name: true } } },
+        },
+        credits: {
+          where: movieCreditsWhere,
+          // Cast in billing order. Crew has no cast_order (NULLs sort last),
+          // so the second key orders it, most popular first.
+          orderBy: [{ order: 'asc' }, { person: { popularity: 'desc' } }],
+          select: {
+            kind: true,
+            character: true,
+            job: true,
+            person: { select: { id: true, name: true, profilePath: true } },
+          },
+        },
+      },
+    });
+    if (!movie) throw new NotFoundException(`Movie ${id} not found`);
+
+    const {
+      releaseDate,
+      budget,
+      revenue,
+      ratingSum,
+      reviewCount,
+      genres,
+      credits,
+      ...rest
+    } = movie;
+
+    return {
+      ...rest,
+      // DATE comes back as UTC midnight; send the plain "YYYY-MM-DD" so a
+      // browser west of UTC doesn't show the day before.
+      releaseDate: releaseDate?.toISOString().slice(0, 10) ?? null,
+      // BIGINT comes back as bigint, which JSON.stringify throws on. Number()
+      // is exact below 2^53, far above any budget or revenue.
+      budget: budget === null ? null : Number(budget),
+      revenue: revenue === null ? null : Number(revenue),
+      streamVibeRating: reviewCount > 0 ? ratingSum / reviewCount : null,
+      reviewCount,
+      genres: genres.map(({ genre }) => genre),
+      ...toCastAndCrew(credits),
     };
   }
 
