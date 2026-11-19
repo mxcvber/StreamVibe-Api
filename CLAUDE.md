@@ -1,96 +1,53 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project
 
-StreamVibe is a movie platform. **This repo is the backend only.** The frontend is a separate
-Next.js 16 repo at `../web` — two independent git repositories, no monorepo root. Keep this file
-and `../web/CLAUDE.md` from contradicting each other on the API port, base URL, or who talks to
-TMDB.
+StreamVibe is a movie platform. **This repo is the NestJS backend only** (Prisma, PostgreSQL,
+Redis planned). The Next.js frontend is the separate repo `../web`, with its own CLAUDE.md. It
+calls this API at `http://localhost:4000/api/v1` (its server-only `API_URL`) and never calls
+TMDB; here, only the import script does. Stripe (planned) belongs to this repo. Keep this file
+and `../web/CLAUDE.md` consistent on the port, the base URL and who talks to TMDB.
 
 It is a portfolio project, and its learning goals are part of the point: working with a large
 database, seeding and handling large numbers of fake users, and working with Claude across a
 long-running multi-session build. It is the largest project this author has taken on, so
-**explain architectural reasoning rather than silently making large-scale decisions** — when a
+**explain architectural reasoning rather than silently making large-scale decisions**. When a
 choice is expensive to reverse, surface the trade-off instead of just picking one.
 
 ## Commands
 
-| Command                | Purpose                                                           |
-| ---------------------- | ----------------------------------------------------------------- |
-| `docker compose up -d` | Start local Postgres + Redis — required before `dev`/`start:prod` |
-| `npm run dev`          | Watch-mode dev server                                             |
-| `npm run build`        | `nest build` → `dist/` (`deleteOutDir` is on, so it wipes first)  |
-| `npm run generate`     | `prisma generate` → Prisma Client into `src/generated/prisma`     |
-| `npm run migrate`      | `prisma migrate dev` — create + apply a migration (no generate)   |
-| `npm run import:tmdb`  | One-time TMDB catalog import (see below) — needs `npm run build`  |
-| `npm run openapi`      | Write `openapi.json` (see below) — needs a current `dist/`        |
-| `npm run start:prod`   | `node dist/main`                                                  |
-| `npm run lint`         | ESLint **with `--fix`** — it rewrites files                       |
-| `npx tsc --noEmit`     | Type-check only                                                   |
+- `docker compose up -d`: Postgres (host port 5433) and Redis; the app won't boot without
+  Postgres.
+- `npm run dev`: watch mode. `npm run build`: `nest build` → `dist/`, wiping it first.
+  `npm run start:prod`: `node dist/main`.
+- `npm run generate`: Prisma Client → `src/generated/prisma` (gitignored), after a clone and
+  every `schema.prisma` change; `build` and `dev` fail without it.
+- `npm run migrate`: create and apply a migration. Run `npm run generate` after it.
+- `npm run openapi`: write `openapi.json` from `dist/`, after changing a DTO, a controller's
+  return type or a route.
+- `npm run import:tmdb`: the one-time, resumable TMDB import, from `dist/`.
+- `npm run lint`: ESLint **with `--fix`**, so it rewrites files. `npx tsc --noEmit`: type-check.
 
-Bring the containers up first. `PrismaService.onModuleInit` issues a real `SELECT 1` after
-`$connect()`, so with no Postgres running the app refuses to boot instead of failing inside the
-first request that queries. Postgres is published on host port **5433**, not 5432 — a native
-Windows PostgreSQL service owns 5432 on this machine.
+## Essentials
 
-`npm run generate` is a standalone command, run deliberately. **Do not wire it into other scripts**
-as a `prebuild`/`predev` lifecycle hook — one command, invoked explicitly, beats the same thing
-duplicated across hidden hooks. `src/generated` is gitignored, so run it after a fresh clone and
-after every `schema.prisma` change; `npm run build` and `npm run dev` both fail on a missing client.
+- **No tests, by the author's choice.** Don't add `*.spec.ts` or `*.e2e-spec.ts` files, testing
+  dependencies or test scripts, and don't treat tests as part of "done" or offer them as a
+  follow-up. Verify with `npx tsc --noEmit`, `npm run lint` and by running the app.
+- **Code comments are the author's.** Record reasoning in the matching rule or doc, not in a new
+  comment. Where a comment and the code disagree, the code wins.
+- **Scope:** catalog and discovery; playback is YouTube trailer embeds in the frontend. The
+  backend serves no video: flag any request that implies streaming full films.
 
-`npm run migrate` and then `npm run generate` — Prisma 7's `migrate dev` no longer generates the
-client. SQL Prisma cannot express (CHECK constraints) goes in by hand:
-`npx prisma migrate dev --create-only --name x`, edit the file, then `npm run migrate`. Never
-edit a migration after it has been applied — the checksum mismatch forces a reset.
+## Where knowledge lives
 
-`npm run openapi` writes `openapi.json` at the repo root: the OpenAPI document of every route,
-the API contract for `../web` to generate its response types from. **Regenerate it after
-changing a DTO, a controller's return type or a route.** The schemas come from the
-`@nestjs/swagger` CLI plugin in `nest-cli.json` (`introspectComments` on, so DTO JSDoc becomes
-the descriptions), which only runs inside `nest build`. So the command runs against `dist/`, like
-`import:tmdb`, and needs no database. `src/openapi.ts` builds the document for both `/docs` and
-the file, so the two cannot drift. After changing the plugin's options, restart `npm run dev` (or
-run `npm run build`): the watcher does not re-emit files whose source has not changed, so `dist/`
-keeps DTOs compiled with the old options.
-
-**This project has no tests, by the author's choice.** There is no test suite and none is planned.
-Do not add `*.spec.ts` or `*.e2e-spec.ts` files, testing dependencies, or test scripts, and do not
-treat test coverage as part of "done" or offer it as a follow-up. Verify work with
-`npx tsc --noEmit`, `npm run lint`, and by actually running the app.
-
-`incremental` is on and `rootDir` is set, so **`tsBuildInfoFile` is pinned explicitly inside
-`dist/`** in both tsconfigs. Do not remove those pins. With `rootDir` set, TypeScript's default
-puts the buildinfo at the repo root, where `deleteOutDir` cannot clear it — a deleted `dist/` then
-never gets rebuilt, and `npm run dev` dies with `Cannot find module 'dist/main'`.
-
-## Planned architecture
-
-Prisma ORM over PostgreSQL, with **Redis for performance**: response/query caching, a per-user
-cache of recently viewed movies, and possibly user sessions so login stays fast. Postgres and
-Redis run in Docker for local dev.
-
-**Scope of "watching".** This is a catalog and discovery platform. Movie metadata, images and
-trailer keys come from TMDB; playback is YouTube trailer embeds rendered by the frontend. **The
-backend serves no video files** — no object storage, transcoding, HLS or DRM. Full-film streaming
-is explicitly out of scope; treat any request that implies it as a scope change worth flagging.
-
-**TMDB.** This API is the only source of movie data — the frontend never calls TMDB directly.
-
-**The import is a script, not a queue job.** `npm run import:tmdb` (`src/cli/import-tmdb.ts` →
-`src/tmdb-import/`) is a resumable terminal command on a Nest application context, deliberately
-not a BullMQ job.
-
-**Stripe is a backend responsibility**, despite appearing under the frontend stack in older notes:
-checkout session creation, the webhook endpoint, subscription state and the entitlement guard.
-**The webhook needs the raw request body — this is already decided and wired.** `main.ts` calls
-`NestFactory.create(AppModule, { rawBody: true })`, which keeps the global JSON parser and
-preserves the unparsed buffer alongside it; the webhook controller reads it with `@RawBody()`.
-Do not add a second mechanism: setting `bodyParser: false` or mounting a route-scoped
-`express.raw()` would change `req.body` for every other route in the app.
-
-**API conventions.** REST, versioned under `/api/v1`. **Cursor-based pagination** — offset
-pagination degrades badly at the row counts this project targets. One consistent error envelope.
-`class-validator` with a global `ValidationPipe` (`whitelist`, `transform`). Config through
-`@nestjs/config` with env-schema validation at boot.
+- `.claude/rules/*.md` load automatically when you touch matching files: nestjs, queries,
+  prisma, tmdb-import, environment, code-style and tooling.
+- `.claude/docs/` (read on demand):
+  - `architecture.md`: entry points, routes, field meanings, the contract with `../web`, where
+    things live. Before cross-cutting work.
+  - `data-model.md`: why each table, key and index is shaped as it is. Before changing the
+    schema or building on a model.
+  - `state.md`: what's built, modeled, planned and broken.
+- The author works step by step. Before committing, they say what changed and where: read the
+  diff (`git status`, `git diff`, `git diff --staged`) and bring CLAUDE.md, the rules and the
+  docs in line. A change that moves or renames something a rule or doc names updates them too.
