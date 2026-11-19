@@ -29,5 +29,6 @@ paths:
 - ESLint: typed `recommendedTypeChecked`, plus Prettier as an error (`endOfLine: auto`).
   `no-explicit-any` is off; `no-floating-promises` and `no-unsafe-argument` only warn;
   `src/generated/**` is ignored. `npm run lint` fixes in place, and `npm run format` runs
-  Prettier over `src`.
+  Prettier over `src`. The config is built with ESLint core's `defineConfig` (`eslint/config`),
+  not `tseslint.config()`, which typescript-eslint 8 deprecated in its favor: don't switch back.
 - There is no test tooling: the Jest scaffolding was removed on purpose (CLAUDE.md).
