@@ -7,8 +7,8 @@ How the backend fits together. It names symbols as well as paths, so search for 
 One Nest module graph, three ways in:
 
 - **HTTP API.** `main.ts` → `AppModule`: `ConfigModule` (global, validated by `envSchema`),
-  `PrismaModule` (global, one `PrismaService`), `CarouselModule`, `MoviesModule`, and the Nest
-  scaffold's `AppController`. Bootstrap: `.claude/rules/nestjs.md`.
+  `PrismaModule` (global, one `PrismaService`), `CarouselModule` and `MoviesModule`. Bootstrap:
+  `.claude/rules/nestjs.md`.
 - **TMDB import.** `src/cli/import-tmdb.ts` → `ImportTmdbCliModule`, an application context with
   no HTTP: `ConfigModule`, `PrismaModule` and `TmdbImportModule`. `.claude/rules/tmdb-import.md`.
 - **OpenAPI file.** `src/cli/generate-openapi.ts` creates `AppModule` without initialising it
@@ -50,7 +50,6 @@ the app runs. Query and index details: `.claude/rules/queries.md`.
 | `GET /movies/:id` | `findOne` | one movie's page, minus its reviews; 404 for an unknown id | — |
 | `GET /movies/:id/genre` | `findMoviesByGenre` | a cursor page of a genre's released movies; 404 for an unknown genre | newest first |
 | `GET /movies/:id/genre/top-10` | `findTopTenMoviesByGenre` | a genre's 10 most popular movies; 404 for an unknown genre | most popular first |
-| `GET /` | `AppController.getHello` | Nest's scaffold "Hello World!" (`state.md`) | — |
 
 - `:id` is a TMDB **movie** id on `/movies/:id`, but a TMDB **genre** id on `/movies/:id/genre`
   and `/movies/:id/genre/top-10`.
@@ -93,8 +92,6 @@ What values mean, which `openapi.json` doesn't say.
   than send what the API would reject with 400, and `parseMovieId` rejects anything but a
   positive Postgres integer (`state.md`).
 - The web's star display and the `rating` filter share one formula (`queries.md`).
-- The OpenAPI description carries TMDB's attribution: "This product uses the TMDB API but is not
-  endorsed or certified by TMDB."
 
 ## Patterns
 

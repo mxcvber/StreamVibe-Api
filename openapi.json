@@ -1,27 +1,6 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/api/v1": {
-      "get": {
-        "operationId": "AppController_getHello",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "App"
-        ]
-      }
-    },
     "/api/v1/carousel/top-in-genres": {
       "get": {
         "operationId": "CarouselController_findTopMoviePosters",
@@ -294,7 +273,7 @@
   },
   "info": {
     "title": "StreamVibe API",
-    "description": "Movie catalog and discovery API. Movie data and images are provided by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "description": "Movie catalog and discovery API.",
     "version": "1.0",
     "contact": {}
   },

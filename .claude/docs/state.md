@@ -53,8 +53,9 @@ movie page's reviews.
   selects `voteAverage` for the cursor to match. No index covers `(vote_average DESC, id DESC)`,
   so each page sorts instead of walking an index, and movies with a handful of 10.0 votes can
   lead the list. Fixing it changes what the API returns to the web, so ask first.
-- `GET /api/v1` returns Nest's scaffold "Hello World!" (`AppController`, `AppService`), and
-  `openapi.json` documents it.
+- No TMDB attribution is shown anywhere: the OpenAPI description dropped "This product uses the
+  TMDB API but is not endorsed or certified by TMDB", and `../web` has no notice either. TMDB's
+  API terms ask apps to show it.
 - Ids outside Postgres `integer` pass `ParseIntPipe`, fail in Postgres and come back as 500.
   `../web`'s `data-fetching.md` records this and guards with `parseMovieId`; not re-checked here.
 - There is no `.env.example`: `.claude/rules/environment.md` lists the variables.

@@ -77,7 +77,9 @@ paths:
   `npm run dev` running or after `npm run build`. It builds `AppModule`, because the document
   describes the HTTP controllers, but never initialises it, so no lifecycle hook runs and
   Postgres needn't be up. `.env` still has to be valid: `ConfigModule` validates it as the
-  module loads. The output is pretty-printed with a trailing newline, so a DTO change reads as a
+  module loads. The output path is resolved from the compiled script's directory
+  (`dist/cli/`), not the working directory, so moving the script to another depth changes its
+  `'..', '..'`. The output is pretty-printed with a trailing newline, so a DTO change reads as a
   small diff.
 - Regenerate after any DTO, return-type or route change, and after adding or removing JSDoc on
   DTOs or controllers. Then the web runs `npm run api:types`.

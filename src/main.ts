@@ -18,9 +18,6 @@ async function bootstrap() {
   // is not prefixed, so the docs stay at /docs.
   app.setGlobalPrefix(API_PREFIX);
 
-  // whitelist drops properties no DTO declares. transform hands handlers the
-  // DTO instance instead of the raw object — without it, query params arrive
-  // as strings and DTO defaults never apply.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = app.get(ConfigService);
@@ -31,8 +28,7 @@ async function bootstrap() {
   // therefore PrismaService's $disconnect(). Off by default.
   app.enableShutdownHooks();
 
-  // getOrThrow, not get: a missing variable should stop the process here rather
-  // than become undefined somewhere further downstream.
   await app.listen(config.getOrThrow<number>('PORT'));
 }
+
 void bootstrap();
