@@ -1,8 +1,4 @@
-// Configuration for the Prisma CLI (generate, migrate, validate). This file is
-// loaded by the CLI in its own process — there is no Nest application here, so
-// no ConfigService: env vars are read with Prisma's own typed `env()` helper.
-//
-// Prisma does not read .env on its own; "dotenv/config" is what loads it.
+// Configuration for the Prisma CLI (generate, migrate, validate).
 import 'dotenv/config';
 import { defineConfig, env } from 'prisma/config';
 

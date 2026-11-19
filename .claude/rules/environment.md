@@ -45,8 +45,9 @@ keeps the data; `down -v` destroys the volumes.
 - Postgres is `postgres:18.6-trixie`, Debian rather than Alpine on purpose: Alpine's musl sorts
   text differently from glibc, and every managed Postgres worth deploying to (RDS, Neon,
   Supabase) is glibc. Matching production collation matters for a large catalog and its indexes,
-  and switching bases after seeding means a REINDEX. 19 was in beta in September 2026; moving to
-  it costs a `down -v` and a re-migrate.
+  and switching bases after seeding means a REINDEX. 19 was in beta in September 2026. A new
+  major version won't start on the old data directory, so moving to it costs a `down -v`, a
+  re-migrate and a re-import.
 - Its volume mounts at `/var/lib/postgresql`. Never change it to `/var/lib/postgresql/data`:
   Postgres 18 moved PGDATA to `/var/lib/postgresql/18/docker`, and the old mount most tutorials
   show silently fails to persist (docker-library/postgres#1370).
@@ -56,10 +57,10 @@ keeps the data; `down -v` destroys the volumes.
 - The credentials are `${VAR:?…}` with no defaults: Compose aborts naming the missing variable
   instead of passing a blank one for the Postgres entrypoint to die on later.
 - The healthcheck's 30 s `start_period` covers initdb on a cold volume.
-- A seeding profile is commented out (`shared_buffers=512MB`, `work_mem=32MB`,
-  `maintenance_work_mem=512MB`). Stock settings give honest EXPLAIN output while the data is
-  small but are slow for bulk inserts and index builds: uncomment it when the seeder pushes real
-  row counts.
+- Postgres runs on stock settings (128MB `shared_buffers`, 4MB `work_mem`), which give honest
+  EXPLAIN output while the data is small but are slow for bulk inserts and index builds. When
+  the seeder pushes real row counts, give the service a `command:` raising
+  `shared_buffers=512MB`, `work_mem=32MB` and `maintenance_work_mem=512MB`.
 - Redis is `redis:8.2.9-alpine`. 8.2 is the LTS line, supported to about September 2030; 8.10 is
   short-term, and nothing BullMQ or `@nestjs/cache-manager` needs is newer than 8.2. Alpine is
   fine here, since Redis has no collation. The image persists nothing by default, so it runs with

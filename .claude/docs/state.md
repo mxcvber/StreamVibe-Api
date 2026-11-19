@@ -30,7 +30,7 @@ The order is the author's call.
 - Redis: no client is installed, and `REDIS_URL` isn't in the env schema yet. It is planned for
   response and query caching, recently viewed movies per user, and possibly sessions.
 - The fake-user seeder (the schema plans for a 20M-row watchlist). It should use the unnest bulk
-  writes (`tmdb-import.md`) and the Compose seeding profile (`environment.md`).
+  writes (`tmdb-import.md`) and the bulk-load Postgres settings (`environment.md`).
 - Search (the trigram indexes on `movies.title` and `people.name` exist), person pages, and one
   consistent error envelope; errors are Nest's defaults today.
 
@@ -43,8 +43,8 @@ movie page's reviews.
 - Genre filters walk an index and check an EXISTS per row, so rare genres read deeper
   (`queries.md`).
 - `findTopMoviePosters` loads every movie_genres row and trims to 4 per genre in memory.
-- `PrismaPg`'s pool runs on its defaults (`prisma.md`), and Postgres on stock settings until the
-  seeding profile is enabled (`environment.md`).
+- `PrismaPg`'s pool runs on its defaults (`prisma.md`), and Postgres on stock settings
+  (`environment.md`).
 
 ## Known issues
 
