@@ -44,9 +44,9 @@ Written only by the import (`.claude/rules/tmdb-import.md`) and read by every en
 
 | Index | Serves |
 | --- | --- |
-| `(popularity DESC, id DESC)` | the popular carousel, `/movies?sort=popular`, a genre's top 10 |
+| `(popularity DESC, id DESC)` | `/movies?sort=popular`, a genre's top 10 |
 | `(weighted_rating DESC, id DESC)` | the must-watch carousel |
-| `(release_date DESC, id DESC) WHERE release_date IS NOT NULL` | new releases, a genre's list, `newest` (scanned backwards) |
+| `(release_date DESC, id DESC) WHERE release_date IS NOT NULL` | new releases, a genre's list, `newest` (scanned backwards), the trending-now carousel's cutoff and window |
 | GIN on `title gin_trgm_ops` | search, planned |
 | `(collection_id)` | the collection foreign key |
 

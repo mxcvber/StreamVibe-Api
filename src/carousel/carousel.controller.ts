@@ -1,31 +1,31 @@
+import type { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
 import { Controller, Get } from '@nestjs/common';
 import { CarouselService } from './carousel.service';
-import { MustWatchMoviesDto } from './dto/carousel-must-watch.dto';
-import { NewReleasesDto } from './dto/carousel-new-releases.dto';
-import { PopularMoviesDto } from './dto/carousel-popular-movies.dto';
-import { TopInGenresDto } from './dto/carousel-top-movie-posters.dto';
+import { CarouselMustWatchDto } from './dto/carousel-must-watch.dto';
+import { CarouselNewReleaseDto } from './dto/carousel-new-releases.dto';
+import { CarouselTopInGenresDto } from './dto/carousel-top-in-genres.dto';
 
 @Controller('carousel')
 export class CarouselController {
   constructor(private readonly carouselService: CarouselService) {}
 
   @Get('top-in-genres')
-  findTopMoviePosters(): Promise<TopInGenresDto> {
+  findTopMoviePosters(): Promise<CarouselTopInGenresDto[]> {
     return this.carouselService.findTopMoviePosters();
   }
 
-  @Get('popular')
-  findPopularMovies(): Promise<PopularMoviesDto> {
-    return this.carouselService.findPopularMovies();
+  @Get('trending-now')
+  findTrendingNowMovies(): Promise<CarouselTrendingNowDto[]> {
+    return this.carouselService.findTrendingNowMovies();
   }
 
   @Get('new-releases')
-  findNewReleases(): Promise<NewReleasesDto> {
+  findNewReleases(): Promise<CarouselNewReleaseDto[]> {
     return this.carouselService.findNewReleases();
   }
 
   @Get('must-watch')
-  findMustWatchMovies(): Promise<MustWatchMoviesDto> {
+  findMustWatchMovies(): Promise<CarouselMustWatchDto[]> {
     return this.carouselService.findMustWatchMovies();
   }
 }

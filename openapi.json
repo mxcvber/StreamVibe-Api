@@ -11,7 +11,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TopInGenresDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CarouselTopInGenresDto"
+                  }
                 }
               }
             }
@@ -22,9 +25,9 @@
         ]
       }
     },
-    "/api/v1/carousel/popular": {
+    "/api/v1/carousel/trending-now": {
       "get": {
-        "operationId": "CarouselController_findPopularMovies",
+        "operationId": "CarouselController_findTrendingNowMovies",
         "parameters": [],
         "responses": {
           "200": {
@@ -32,7 +35,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PopularMoviesDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CarouselTrendingNowDto"
+                  }
                 }
               }
             }
@@ -53,7 +59,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NewReleasesDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CarouselNewReleaseDto"
+                  }
                 }
               }
             }
@@ -74,7 +83,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MustWatchMoviesDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CarouselMustWatchDto"
+                  }
                 }
               }
             }
@@ -285,15 +297,13 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           }
         },
         "required": [
@@ -302,18 +312,16 @@
           "posterPath"
         ]
       },
-      "GenreDto": {
+      "CarouselTopInGenresDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB genre id."
+            "type": "number"
           },
           "name": {
             "type": "string"
           },
           "movies": {
-            "description": "Most popular first; empty for a genre with no movies.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MoviePosterDto"
@@ -326,38 +334,21 @@
           "movies"
         ]
       },
-      "TopInGenresDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GenreDto"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ]
-      },
-      "PopularMovieDto": {
+      "CarouselTrendingNowDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "runtime": {
             "type": "number",
-            "nullable": true,
-            "description": "Minutes; null when TMDB had no runtime (it sends 0, the importer stores null)."
+            "nullable": true
           }
         },
         "required": [
@@ -367,38 +358,20 @@
           "runtime"
         ]
       },
-      "PopularMoviesDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "description": "Most popular first.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PopularMovieDto"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ]
-      },
-      "NewReleaseMovieDto": {
+      "CarouselNewReleaseDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "releaseDate": {
-            "type": "string",
-            "description": "\"YYYY-MM-DD\" — a calendar date, so no timestamp to shift across time zones."
+            "type": "string"
           }
         },
         "required": [
@@ -408,47 +381,27 @@
           "releaseDate"
         ]
       },
-      "NewReleasesDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "description": "Newest first; already released only.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/NewReleaseMovieDto"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ]
-      },
-      "MustWatchMovieDto": {
+      "CarouselMustWatchDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "runtime": {
             "type": "number",
-            "nullable": true,
-            "description": "Minutes; null when TMDB had no runtime (it sends 0, the importer stores null)."
+            "nullable": true
           },
           "voteAverage": {
-            "type": "number",
-            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+            "type": "number"
           },
           "voteCount": {
-            "type": "number",
-            "description": "TMDB vote count, raw; the frontend abbreviates it (\"20K\")."
+            "type": "number"
           }
         },
         "required": [
@@ -460,34 +413,17 @@
           "voteCount"
         ]
       },
-      "MustWatchMoviesDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "description": "Highest weighted rating first.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MustWatchMovieDto"
-            }
-          }
-        },
-        "required": [
-          "items"
-        ]
-      },
       "MovieListItemDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "releaseDate": {
             "type": "string",
@@ -723,15 +659,13 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "voteAverage": {
             "type": "number",

@@ -13,10 +13,20 @@ paths:
 - Every list ordering ends in `id`. It breaks ties, it lets the cursor be a plain movie id for
   any sort, and it makes the ordering match a movies browse index exactly, so Postgres walks the
   index with no sort:
-  - `(popularity DESC, id DESC)`: the popular carousel, `/movies?sort=popular`, a genre's top 10.
+  - `(popularity DESC, id DESC)`: `/movies?sort=popular`, a genre's top 10.
   - `(weighted_rating DESC, id DESC)`: the must-watch carousel.
   - `(release_date DESC, id DESC) WHERE release_date IS NOT NULL`: new releases, a genre's list,
     and `newest`, which scans it backwards for its ascending order.
+- The trending-now carousel ranks by popularity only within the `TRENDING_NOW_WINDOW` (100)
+  newest released movies, which drops unreleased films and older ones trending on import day.
+  One query reads the Nth newest release date from the release-date index, a second takes the
+  top 20 by popularity between it and today (a few more than N when movies share the cutoff
+  date; no lower bound when fewer than N are released). A count window, not a date window: the
+  catalog is a frozen snapshot, so "the last 12 months" would empty out as time passes.
+- That second query is the one carousel ordering no index walk serves: no index orders a
+  release-date range by popularity, so Postgres reads the window as a range of the release-date
+  index (both bounds in the Index Cond) and sorts its ~N rows. EXPLAIN has shown this only on the
+  15-movie local catalog; re-check at full size.
 - A query on the release-date index must carry a predicate that implies `IS NOT NULL`, or the
   planner can't match the partial index; `lte` and `gt` on `releaseDate` do. Why the index is
   partial: `.claude/docs/data-model.md`.

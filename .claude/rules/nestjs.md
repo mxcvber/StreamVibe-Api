@@ -35,10 +35,10 @@ paths:
 
 ## Conventions
 
-- REST under `/api/v1`. Lists are cursor-paginated, never offset: offset pagination degrades
-  badly at the row counts this project targets. How: `queries.md`.
-- Every list response wraps its rows in `items`, so pagination fields can join later without a
-  breaking change.
+- REST under `/api/v1`. A list that pages uses a cursor, never an offset: offset pagination
+  degrades badly at the row counts this project targets. How: `queries.md`.
+- A paginated list wraps its rows in `items`, beside `nextCursor`. A fixed-size list that will
+  never page (the carousels) returns a bare array.
 - An unknown id is a 404 from `NotFoundException` (`Movie ${id} not found`), an unknown genre
   on the genre routes too. One consistent error envelope is planned but not built; errors are
   Nest's default responses for now.
@@ -56,7 +56,7 @@ paths:
   implicitly, so `@IsInt` would reject the string.
 - **DTO class names are contract names.** `openapi.json` names its schemas after the classes,
   and `../web/src/api/types.ts` aliases those schemas (`MovieDetailDto`, `MovieListDto`,
-  `TopInGenresDto`, …). Renaming a DTO breaks the web's types.
+  `CarouselTopInGenresDto`, …). Renaming a DTO breaks the web's types.
 
 ## OpenAPI (`openapi.json`, `/docs`)
 

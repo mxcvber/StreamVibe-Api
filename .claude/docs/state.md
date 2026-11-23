@@ -2,15 +2,16 @@
 
 ## Built
 
-- Endpoints (`architecture.md`): the four carousels (`top-in-genres`, `popular`, `new-releases`,
-  `must-watch`), the cursor-paginated catalog (`/movies` with `sort` and `rating`), the movie
-  page (`/movies/:id`, everything but reviews), and a genre's list and top 10.
+- Endpoints (`architecture.md`): the four carousels (`top-in-genres`, `trending-now`,
+  `new-releases`, `must-watch`), the cursor-paginated catalog (`/movies` with `sort` and
+  `rating`), the movie page (`/movies/:id`, everything but reviews), and a genre's list and top
+  10.
 - Swagger UI at `/docs`, and `openapi.json` generated from the same document.
 - The resumable TMDB import (`npm run import:tmdb`), including the weighted rating.
 - Environment validation at boot, and the Docker Compose stack (Postgres 18, Redis 8.2).
-- Data: the code's comments put the local catalog at ~4.5k movies (~12k movie–genre rows), a
-  partial import of the 150k-id default (~50k movies). Not re-checked on 2026-11-19: Docker
-  wasn't running.
+- Data: the local database holds 15 movies (43 movie–genre rows), from one `MOVIE_BACKFILL` run
+  on 2026-11-07 that processed 15 ids (checked 2026-11-23). The ~4.5k-movie figures in
+  `queries.md` come from a since-removed code comment. The 150k-id default yields ~50k movies.
 
 ## Modeled, not served
 
@@ -43,6 +44,8 @@ movie page's reviews.
 - Genre filters walk an index and check an EXISTS per row, so rare genres read deeper
   (`queries.md`).
 - `findTopMoviePosters` loads every movie_genres row and trims to 4 per genre in memory.
+- `findTrendingNowMovies` sorts its release-date window by popularity instead of walking an
+  index (`queries.md`).
 - `PrismaPg`'s pool runs on its defaults (`prisma.md`), and Postgres on stock settings
   (`environment.md`).
 

@@ -6,14 +6,6 @@
 
 import { MoviePosterDto } from '../../common/dto/movie-poster.dto';
 
-/** A movie reduced to what a new-releases tile needs. */
-export class NewReleaseMovieDto extends MoviePosterDto {
-  /** "YYYY-MM-DD" — a calendar date, so no timestamp to shift across time zones. */
+export class CarouselNewReleaseDto extends MoviePosterDto {
   releaseDate!: string;
-}
-
-/** Rows wrapped in `items` so pagination fields can join later without a break. */
-export class NewReleasesDto {
-  /** Newest first; already released only. */
-  items!: NewReleaseMovieDto[];
 }

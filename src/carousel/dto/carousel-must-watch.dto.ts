@@ -6,18 +6,8 @@
 
 import { MoviePosterDto } from '../../common/dto/movie-poster.dto';
 
-/** A movie reduced to what a must-watch tile needs. */
-export class MustWatchMovieDto extends MoviePosterDto {
-  /** Minutes; null when TMDB had no runtime (it sends 0, the importer stores null). */
+export class CarouselMustWatchDto extends MoviePosterDto {
   runtime!: number | null;
-  /** TMDB average, 0–10; the frontend halves it for the 5-star display. */
   voteAverage!: number;
-  /** TMDB vote count, raw; the frontend abbreviates it ("20K"). */
   voteCount!: number;
-}
-
-/** Rows wrapped in `items` so pagination fields can join later without a break. */
-export class MustWatchMoviesDto {
-  /** Highest weighted rating first. */
-  items!: MustWatchMovieDto[];
 }

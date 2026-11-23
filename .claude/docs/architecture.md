@@ -43,7 +43,7 @@ the app runs. Query and index details: `.claude/rules/queries.md`.
 | Route | Handler | Returns | Order |
 | --- | --- | --- | --- |
 | `GET /carousel/top-in-genres` | `findTopMoviePosters` | every genre, by name, with its 4 most popular movies (none for an empty genre) | most popular first |
-| `GET /carousel/popular` | `findPopularMovies` | 20 movies | most popular first |
+| `GET /carousel/trending-now` | `findTrendingNowMovies` | 20 movies, from the 100 newest released by today | most popular first |
 | `GET /carousel/new-releases` | `findNewReleases` | 20 movies released by today | newest first |
 | `GET /carousel/must-watch` | `findMustWatchMovies` | 16 movies | highest `weighted_rating` first |
 | `GET /movies` | `findAll` | a cursor page of the whole catalog, optionally one star `rating` | `sort`: `popular` (default), `top-rated`, or `newest`, which lists upcoming movies only, soonest first |
@@ -76,9 +76,9 @@ What values mean, which `openapi.json` doesn't say.
 - On the movie page, `genres` are by name, `cast` is top-billed with the lead first (at most
   20), and `crew` holds key jobs only, one entry per person, whose `jobs` come highest-ranked
   first (at most 20). A cast member's `character` is null when TMDB names no role.
-- `items` follow the route's order (the table above). `nextCursor` is the last item's id: pass
-  it back as `cursor` for the next page, and omit `cursor` for the first. It is null on the last
-  page. `limit` is movies per page.
+- Rows (a carousel's array, or a page's `items`) follow the route's order (the table above).
+  `nextCursor` is the last item's id: pass it back as `cursor` for the next page, and omit
+  `cursor` for the first. It is null on the last page. `limit` is movies per page.
 - `rating` keeps the movies whose card shows that many stars or half a star more, from at least
   30 TMDB votes.
 
@@ -126,7 +126,7 @@ What values mean, which `openapi.json` doesn't say.
   `src/generated/prisma/`.
 - `src/common/dto/`: `CursorPageQueryDto`, `MoviePosterDto`, `MovieListDto`,
   `MovieListItemDto`.
-- `src/carousel/`: `CarouselController`, `CarouselService` and `dto/`.
+- `src/carousel/`: `CarouselController`, `CarouselService` (`TRENDING_NOW_WINDOW`) and `dto/`.
 - `src/movies/`: `MoviesController`, `MoviesService`, `movie-sort.ts` (`MOVIE_SORTS`,
   `movieSortQuery`), `movie-rating-filter.ts` (`movieRatingWhere`, `MIN_VOTES_FOR_RATING`),
   `movie-credits.ts` (`movieCreditsWhere`, `toCastAndCrew`, `CAST_LIMIT`, `CREW_LIMIT`,
