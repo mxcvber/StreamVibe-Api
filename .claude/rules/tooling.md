@@ -5,6 +5,7 @@ paths:
   - nest-cli.json
   - eslint.config.mjs
   - .prettierrc
+  - .vscode/settings.json
 ---
 
 # Tooling
@@ -31,4 +32,7 @@ paths:
   `src/generated/**` is ignored. `npm run lint` fixes in place, and `npm run format` runs
   Prettier over `src`. The config is built with ESLint core's `defineConfig` (`eslint/config`),
   not `tseslint.config()`, which typescript-eslint 8 deprecated in its favor: don't switch back.
+- `.vscode/settings.json` sets `js/ts.preferences.preferTypeOnlyAutoImports` to `false` for this
+  repo only. The author's user setting turns it on, which suits `../web` but writes `import type`
+  for classes here (`code-style.md`). It applies only when `api/` is the opened folder. Keep it.
 - There is no test tooling: the Jest scaffolding was removed on purpose (CLAUDE.md).

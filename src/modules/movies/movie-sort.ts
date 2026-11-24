@@ -1,4 +1,4 @@
-import { Prisma } from '../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 
 /** The `sort` values GET /api/v1/movies accepts; the web repo sends these. */
 export const MOVIE_SORTS = ['popular', 'top-rated', 'newest'] as const;

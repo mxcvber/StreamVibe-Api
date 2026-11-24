@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
-import { CarouselModule } from './carousel/carousel.module';
-import { MoviesModule } from './movies/movies.module';
+import { CarouselModule } from './modules/carousel/carousel.module';
+import { MoviesModule } from './modules/movies/movies.module';
 
 @Module({
   imports: [

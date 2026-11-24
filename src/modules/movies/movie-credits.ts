@@ -1,4 +1,4 @@
-import { CreditKind, Prisma } from '../generated/prisma/client';
+import { CreditKind, Prisma } from '../../generated/prisma/client';
 import {
   CastMemberDto,
   CreditPersonDto,

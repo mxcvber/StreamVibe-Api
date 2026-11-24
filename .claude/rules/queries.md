@@ -1,7 +1,7 @@
 ---
 paths:
-  - src/movies/**
-  - src/carousel/**
+  - src/modules/movies/**
+  - src/modules/carousel/**
   - src/common/**
   - src/**/*.service.ts
 ---

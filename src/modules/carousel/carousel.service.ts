@@ -1,6 +1,6 @@
-import type { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
+import { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CarouselMustWatchDto } from './dto/carousel-must-watch.dto';
 import { CarouselNewReleaseDto } from './dto/carousel-new-releases.dto';
 import { CarouselTopInGenresDto } from './dto/carousel-top-in-genres.dto';

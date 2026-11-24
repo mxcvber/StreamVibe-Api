@@ -1,4 +1,4 @@
-import { Prisma } from '../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 
 /**
  * TMDB votes a movie needs before the rating filter lists it, so a movie with

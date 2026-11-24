@@ -9,7 +9,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { CursorPageQueryDto } from '../../common/dto/cursor-page-query.dto';
+import { CursorPageQueryDto } from '../../../common/dto/cursor-page-query.dto';
 import { MOVIE_SORTS, type MovieSort } from '../movie-sort';
 
 export class ListMoviesQueryDto extends CursorPageQueryDto {

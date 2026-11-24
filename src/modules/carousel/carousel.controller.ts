@@ -1,4 +1,4 @@
-import type { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
+import { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
 import { Controller, Get } from '@nestjs/common';
 import { CarouselService } from './carousel.service';
 import { CarouselMustWatchDto } from './dto/carousel-must-watch.dto';

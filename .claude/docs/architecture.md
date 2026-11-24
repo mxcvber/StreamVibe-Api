@@ -126,8 +126,9 @@ What values mean, which `openapi.json` doesn't say.
   `src/generated/prisma/`.
 - `src/common/dto/`: `CursorPageQueryDto`, `MoviePosterDto`, `MovieListDto`,
   `MovieListItemDto`.
-- `src/carousel/`: `CarouselController`, `CarouselService` (`TRENDING_NOW_WINDOW`) and `dto/`.
-- `src/movies/`: `MoviesController`, `MoviesService`, `movie-sort.ts` (`MOVIE_SORTS`,
+- `src/modules/carousel/`: `CarouselController`, `CarouselService` (`TRENDING_NOW_WINDOW`) and
+  `dto/`.
+- `src/modules/movies/`: `MoviesController`, `MoviesService`, `movie-sort.ts` (`MOVIE_SORTS`,
   `movieSortQuery`), `movie-rating-filter.ts` (`movieRatingWhere`, `MIN_VOTES_FOR_RATING`),
   `movie-credits.ts` (`movieCreditsWhere`, `toCastAndCrew`, `CAST_LIMIT`, `CREW_LIMIT`,
   `KEY_CREW_JOBS`) and `dto/`.

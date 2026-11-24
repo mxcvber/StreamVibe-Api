@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from '../common/dto/movie-list.dto';
+import { MovieListDto } from '../../common/dto/movie-list.dto';
 import { movieRatingWhere } from './movie-rating-filter';
 import { movieSortQuery } from './movie-sort';
-import { CursorPageQueryDto } from '../common/dto/cursor-page-query.dto';
+import { CursorPageQueryDto } from '../../common/dto/cursor-page-query.dto';
 import { TopTenMoviesDto } from './dto/top-10.dto';
 import { MovieDetailDto } from './dto/movie-detail.dto';
 import { movieCreditsWhere, toCastAndCrew } from './movie-credits';

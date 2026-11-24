@@ -1,8 +1,8 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from '../common/dto/movie-list.dto';
+import { MovieListDto } from '../../common/dto/movie-list.dto';
 import { MoviesService } from './movies.service';
-import { CursorPageQueryDto } from '../common/dto/cursor-page-query.dto';
+import { CursorPageQueryDto } from '../../common/dto/cursor-page-query.dto';
 import { TopTenMoviesDto } from './dto/top-10.dto';
 import { MovieDetailDto } from './dto/movie-detail.dto';
 
