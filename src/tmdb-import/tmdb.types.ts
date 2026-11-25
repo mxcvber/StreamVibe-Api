@@ -22,7 +22,7 @@ export interface TmdbGenreListResponse {
   genres: TmdbGenre[];
 }
 
-export interface TmdbCollectionSummary {
+interface TmdbCollectionSummary {
   id: number;
   name: string;
   poster_path: string | null;
@@ -70,7 +70,7 @@ export interface TmdbCrewMember extends TmdbCreditPerson {
   job: string;
 }
 
-export interface TmdbKeyword {
+interface TmdbKeyword {
   id: number;
   name: string;
 }

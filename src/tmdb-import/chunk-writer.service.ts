@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { MappedMovie } from './map-movie';
 
-export interface ChunkWrite {
+interface ChunkWrite {
   movies: MappedMovie[];
   runId: number;
   /** Cursor after this chunk: candidate ids consumed so far, rejected ones included. */

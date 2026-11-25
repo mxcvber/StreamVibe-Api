@@ -1,3 +1,4 @@
+import { toCalendarDate } from '../common/utils/to-calendar-date';
 import { CreditKind, Gender } from '../generated/prisma/client';
 import {
   DEPARTMENT_MAX_LENGTH,
@@ -29,7 +30,7 @@ export function isStorable(
 // One row per table, typed as the SQL columns the ChunkWriter binds — plain
 // values rather than Prisma's createMany inputs, because the writer speaks
 // raw SQL (see chunk-writer.service.ts for why).
-export interface MovieRow {
+interface MovieRow {
   id: number;
   title: string;
   overview: string | null;
@@ -51,14 +52,14 @@ export interface MovieRow {
   syncedAt: Date;
 }
 
-export interface CollectionRow {
+interface CollectionRow {
   id: number;
   name: string;
   posterPath: string | null;
   backdropPath: string | null;
 }
 
-export interface PersonRow {
+interface PersonRow {
   id: number;
   name: string;
   gender: Gender;
@@ -67,12 +68,12 @@ export interface PersonRow {
   popularity: number;
 }
 
-export interface KeywordRow {
+interface KeywordRow {
   id: number;
   name: string;
 }
 
-export interface CreditRow {
+interface CreditRow {
   id: string;
   movieId: number;
   personId: number;
@@ -243,7 +244,7 @@ function dateOrNull(value: string | null | undefined): string | null {
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
-  return parsed.toISOString().slice(0, 10) === value ? value : null;
+  return toCalendarDate(parsed) === value ? value : null;
 }
 
 // For values where TMDB's 0 means "unknown" (runtime).

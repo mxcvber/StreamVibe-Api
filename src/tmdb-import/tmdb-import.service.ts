@@ -19,6 +19,7 @@ import { formatExportDate, TmdbExportService } from './tmdb-export.service';
 import {
   CHUNK_SIZE,
   CONCURRENCY,
+  GENRE_NAME_MAX_LENGTH,
   MAX_CONSECUTIVE_FAILURES,
 } from './tmdb-import.constants';
 import { describeError, TmdbFatalError } from './tmdb.errors';
@@ -129,7 +130,7 @@ export class TmdbImportService {
       await this.prisma.genre.createMany({
         data: genres.map((genre) => ({
           id: genre.id,
-          name: genre.name.slice(0, 64),
+          name: genre.name.slice(0, GENRE_NAME_MAX_LENGTH),
         })),
         skipDuplicates: true,
       });

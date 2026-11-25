@@ -46,6 +46,7 @@ export const MAX_CONSECUTIVE_FAILURES = 25;
 // Column limits from schema.prisma, applied defensively so an unattended run
 // cannot die on one unexpectedly long value.
 export const DEPARTMENT_MAX_LENGTH = 32;
+export const GENRE_NAME_MAX_LENGTH = 64;
 export const KEYWORD_NAME_MAX_LENGTH = 255;
 export const IMAGE_PATH_MAX_LENGTH = 64;
 export const TRAILER_KEY_MAX_LENGTH = 32;

@@ -1,7 +1,7 @@
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-export interface WeightedRatingResult {
+interface WeightedRatingResult {
   /** Catalog mean vote_average over movies that have votes. */
   catalogMean: number;
   /** Vote count at which a movie's own average and the catalog mean weigh equally. */

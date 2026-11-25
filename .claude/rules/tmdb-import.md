@@ -151,7 +151,8 @@ costs the second request. Nothing re-checks a movie later, and nothing deletes o
 - A release date must be a real calendar date: one bad `::date` cast fails the whole chunk, and
   V8 turns `2023-02-30` into March 2 instead of rejecting it, hence the round-trip check.
 - Strings are clipped to their column limits (department 32, genre name 64, keyword name 255,
-  image paths 64, trailer key 32), so an unattended run can't die on one long value.
+  image paths 64; the `*_MAX_LENGTH` constants), so an unattended run can't die on one long value.
+  A trailer key is never clipped, which would break it: a longer one doesn't qualify (Trailers).
 - A person in both cast and crew is stored once: the first occurrence wins, since the person
   fields are the same either way. An empty title falls back to `original_title`. TMDB's gender
   0–3 maps to unknown, female, male and non-binary.
