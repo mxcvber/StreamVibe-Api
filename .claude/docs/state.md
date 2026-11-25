@@ -9,8 +9,10 @@
 - Swagger UI at `/docs`, and `openapi.json` generated from the same document.
 - The resumable TMDB import (`npm run import:tmdb`), including the weighted rating.
 - Environment validation at boot, and the Docker Compose stack (Postgres 18, Redis 8.2).
-- Data: the local database holds 15 movies (43 movie–genre rows), from one `MOVIE_BACKFILL` run
-  on 2026-11-07 that processed 15 ids (checked 2026-11-23). The ~4.5k-movie figures in
+- Data: the local database holds 539 movies (1,534 movie–genre rows, 115,203 credits, 73,089
+  people; checked 2026-11-25): 15 from a `MOVIE_BACKFILL` run on 2026-11-07, 524 from one on
+  2026-11-25 that processed 550 ids. Their `popularity` and votes therefore date from two
+  different days; `weighted_rating` was recomputed over all of them. The ~4.5k-movie figures in
   `queries.md` come from a since-removed code comment. The 150k-id default yields ~50k movies.
 
 ## Modeled, not served
@@ -43,22 +45,34 @@ movie page's reviews.
 
 - Genre filters walk an index and check an EXISTS per row, so rare genres read deeper
   (`queries.md`).
-- `findTopMoviePosters` loads every movie_genres row and trims to 4 per genre in memory.
+- `findTopInGenres` loads every movie_genres row and trims to 4 per genre in memory.
 - `findTrendingNowMovies` sorts its release-date window by popularity instead of walking an
   index (`queries.md`).
+- `sort=top-rated` sorts the whole table for each page: no index covers
+  `(vote_average DESC, id DESC)`. Raw `vote_average` with no vote floor is the author's choice
+  (2026-11-25), so on 539 movies two films with 4 votes are in its top 6.
 - `PrismaPg`'s pool runs on its defaults (`prisma.md`), and Postgres on stock settings
   (`environment.md`).
 
+## What `../web` hasn't caught up with (checked 2026-11-25)
+
+- `npm run api:types` hasn't run there since the carousel DTO renames, so `src/api/types.ts` still
+  aliases four names that no longer exist: `GenreDto` is now `CarouselTopInGenresDto`,
+  `PopularMovieDto` `CarouselTrendingNowDto`, `NewReleaseMovieDto` `CarouselNewReleasesDto`, and
+  `MustWatchMovieDto` `CarouselMustWatchDto`. Type-checked on a copy: with those four repointed,
+  nothing else in the web breaks. At runtime it already matches: its working tree calls the
+  current routes, and the shapes are the same.
+- Its text is behind: `architecture.md` still names `/carousel/popular`, `data-fetching.md` and
+  `movie-route.ts` say the API answers 500 for an out-of-range id (400 now), `movie-filters.ts`
+  points at the old `movie-sort.ts` path, and `getMustWatchMovies`'s comment says 20 movies (16).
+
 ## Known issues
 
-- `sort=top-rated` orders by raw `vote_average`, not `weighted_rating`. `movieSortQuery` has done
-  so since it was written (`7ca69a0`), although its comment says weighted_rating, and `findAll`
-  selects `voteAverage` for the cursor to match. No index covers `(vote_average DESC, id DESC)`,
-  so each page sorts instead of walking an index, and movies with a handful of 10.0 votes can
-  lead the list. Fixing it changes what the API returns to the web, so ask first.
 - No TMDB attribution is shown anywhere: the OpenAPI description dropped "This product uses the
   TMDB API but is not endorsed or certified by TMDB", and `../web` has no notice either. TMDB's
   API terms ask apps to show it.
-- Ids outside Postgres `integer` pass `ParseIntPipe`, fail in Postgres and come back as 500.
-  `../web`'s `data-fetching.md` records this and guards with `parseMovieId`; not re-checked here.
+- `Env` (`env.schema.ts`) is exported but nothing imports it: `ConfigService` calls type their
+  value by hand (`getOrThrow<number>('PORT')`).
+- The comment on `weightedRating` in `schema.prisma` says it serves "Top rated", which orders by
+  `vote_average`.
 - There is no `.env.example`: `.claude/rules/environment.md` lists the variables.

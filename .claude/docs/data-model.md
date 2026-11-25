@@ -36,7 +36,8 @@ Written only by the import (`.claude/rules/tmdb-import.md`) and read by every en
 - `popularity`, `vote_average` and `vote_count` are TMDB's, frozen on the import day.
 - `weighted_rating` is an IMDb-style Bayesian rating, computed once at import. Sorting by raw
   `vote_average` surfaces 10.0 movies with two votes; this pulls low-vote movies toward the
-  catalog mean, so a ranking needs neither a vote-count filter nor an extra index.
+  catalog mean, so a ranking needs neither a vote-count filter nor an extra index. Must-watch
+  ranks by it. `sort=top-rated` doesn't, by the author's choice: it orders by `vote_average`.
 - `review_count` and `rating_sum` hold StreamVibe's own rating, maintained by the app (see
   `reviews`).
 - `synced_at` records when the movie's detail fetch completed; the import skips ids that have
@@ -50,11 +51,11 @@ Written only by the import (`.claude/rules/tmdb-import.md`) and read by every en
 | GIN on `title gin_trgm_ops` | search, planned |
 | `(collection_id)` | the collection foreign key |
 
-- `(sort DESC, id DESC)` is exactly the keyset a cursor page compares against, so each browse
-  ordering is an index-only walk.
+- `(sort DESC, id DESC)` is exactly the keyset a cursor page compares against, so each ordering
+  in the table is an index walk with no sort. `sort=top-rated` has no index and sorts the table.
 - Only the release-date index is partial, because every stored movie is browsable. A DESC index
   puts NULLs first and can't serve `ORDER BY release_date DESC NULLS LAST`, so the queries carry
-  the same `IS NOT NULL` predicate and the planner matches the partial index.
+  a predicate that implies `IS NOT NULL` (a date bound) and the planner matches the partial index.
 - Title search is to be trigram rather than `tsvector`: `ILIKE '%…%'` and `similarity()` are what
   a search box needs, and both use the GIN index.
 

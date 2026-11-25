@@ -1,9 +1,10 @@
-import { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
 import { Injectable } from '@nestjs/common';
+import { toCalendarDate } from '../../common/utils/to-calendar-date';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CarouselMustWatchDto } from './dto/carousel-must-watch.dto';
-import { CarouselNewReleaseDto } from './dto/carousel-new-releases.dto';
+import { CarouselNewReleasesDto } from './dto/carousel-new-releases.dto';
 import { CarouselTopInGenresDto } from './dto/carousel-top-in-genres.dto';
+import { CarouselTrendingNowDto } from './dto/carousel-trending-now.dto';
 
 const TRENDING_NOW_WINDOW = 100;
 
@@ -11,7 +12,7 @@ const TRENDING_NOW_WINDOW = 100;
 export class CarouselService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findTopMoviePosters(): Promise<CarouselTopInGenresDto[]> {
+  async findTopInGenres(): Promise<CarouselTopInGenresDto[]> {
     const rows = await this.prisma.genre.findMany({
       orderBy: { name: 'asc' },
       select: {
@@ -69,7 +70,7 @@ export class CarouselService {
   }
 
   // The newest already-released movies, for the New Releases carousel.
-  async findNewReleases(): Promise<CarouselNewReleaseDto[]> {
+  async findNewReleases(): Promise<CarouselNewReleasesDto[]> {
     const rows = await this.prisma.movie.findMany({
       where: { releaseDate: { lte: new Date() } },
       orderBy: [{ releaseDate: 'desc' }, { id: 'desc' }],
@@ -86,7 +87,7 @@ export class CarouselService {
     // plain "YYYY-MM-DD" so a browser west of UTC doesn't show the day before.
     return rows.map(({ releaseDate, ...movie }) => ({
       ...movie,
-      releaseDate: releaseDate!.toISOString().slice(0, 10),
+      releaseDate: toCalendarDate(releaseDate!),
     }));
   }
 

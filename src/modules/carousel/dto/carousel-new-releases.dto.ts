@@ -6,6 +6,6 @@
 
 import { MoviePosterDto } from '../../../common/dto/movie-poster.dto';
 
-export class CarouselNewReleaseDto extends MoviePosterDto {
+export class CarouselNewReleasesDto extends MoviePosterDto {
   releaseDate!: string;
 }

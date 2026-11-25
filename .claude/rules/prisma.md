@@ -10,8 +10,8 @@ paths:
 ## Client and config
 
 - Prisma 7.10: generator `prisma-client` with `moduleFormat = "cjs"`, output
-  `src/generated/prisma` (gitignored; `npm run generate`). Import from
-  `../generated/prisma/client`.
+  `src/generated/prisma` (gitignored; `npm run generate`). Import its `client` by relative path
+  (`../../generated/prisma/client` from a feature's service).
 - The datasource URL is in `prisma7.config.ts`, because Prisma 7 deprecated `url` in the
   schema's datasource block. The file name is Prisma 7's own (the CLI looks for
   `prisma7.config.*` before the legacy `prisma.config.*`), so don't rename it. The CLI loads it

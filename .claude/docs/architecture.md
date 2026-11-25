@@ -11,13 +11,14 @@ One Nest module graph, three ways in:
   `.claude/rules/nestjs.md`.
 - **TMDB import.** `src/cli/import-tmdb.ts` → `ImportTmdbCliModule`, an application context with
   no HTTP: `ConfigModule`, `PrismaModule` and `TmdbImportModule`. `.claude/rules/tmdb-import.md`.
-- **OpenAPI file.** `src/cli/generate-openapi.ts` creates `AppModule` without initialising it
-  and writes `openapi.json`.
+- **OpenAPI file.** `npm run openapi` builds, then runs `src/cli/generate-openapi.ts`, which
+  creates `AppModule` without initialising it and writes `openapi.json`.
+  `.claude/rules/nestjs.md`.
 
 ## Request flow
 
 ```
-GET /api/v1/… → ValidationPipe (whitelist, transform → query DTO)
+GET /api/v1/… → ValidationPipe (whitelist, transform → query and param DTOs)
   → *Controller → *Service → PrismaService (PrismaPg pool) → PostgreSQL
   → plain object typed as a response DTO → JSON
 ```
@@ -42,17 +43,19 @@ the app runs. Query and index details: `.claude/rules/queries.md`.
 
 | Route | Handler | Returns | Order |
 | --- | --- | --- | --- |
-| `GET /carousel/top-in-genres` | `findTopMoviePosters` | every genre, by name, with its 4 most popular movies (none for an empty genre) | most popular first |
+| `GET /carousel/top-in-genres` | `findTopInGenres` | every genre, by name, with its 4 most popular movies (none for an empty genre) | most popular first |
 | `GET /carousel/trending-now` | `findTrendingNowMovies` | 20 movies, from the 100 newest released by today | most popular first |
 | `GET /carousel/new-releases` | `findNewReleases` | 20 movies released by today | newest first |
 | `GET /carousel/must-watch` | `findMustWatchMovies` | 16 movies | highest `weighted_rating` first |
-| `GET /movies` | `findAll` | a cursor page of the whole catalog, optionally one star `rating` | `sort`: `popular` (default), `top-rated`, or `newest`, which lists upcoming movies only, soonest first |
+| `GET /movies` | `findAll` | a cursor page of the whole catalog, optionally one star `rating` | `sort`: `popular` (default), most popular first; `top-rated`, highest `voteAverage` first, however few votes; or `newest`, which lists upcoming movies only, soonest first |
 | `GET /movies/:id` | `findOne` | one movie's page, minus its reviews; 404 for an unknown id | — |
 | `GET /movies/:id/genre` | `findMoviesByGenre` | a cursor page of a genre's released movies; 404 for an unknown genre | newest first |
 | `GET /movies/:id/genre/top-10` | `findTopTenMoviesByGenre` | a genre's 10 most popular movies; 404 for an unknown genre | most popular first |
 
 - `:id` is a TMDB **movie** id on `/movies/:id`, but a TMDB **genre** id on `/movies/:id/genre`
   and `/movies/:id/genre/top-10`.
+- An `:id` or `cursor` that isn't a positive Postgres `integer` is a 400; an unknown id is a 404,
+  and an unknown cursor an empty page.
 - `/docs` (Swagger UI) and `/docs-json` sit outside the prefix.
 
 ## Fields
@@ -73,32 +76,38 @@ What values mean, which `openapi.json` doesn't say.
 - `streamVibeRating` is the average of StreamVibe's own 1–5 reviews, null until the first one.
 - `trailerKey` is a YouTube video id, always present. `originCountry` holds ISO 3166-1 codes
   ("IN").
-- On the movie page, `genres` are by name, `cast` is top-billed with the lead first (at most
-  20), and `crew` holds key jobs only, one entry per person, whose `jobs` come highest-ranked
-  first (at most 20). A cast member's `character` is null when TMDB names no role.
-- Rows (a carousel's array, or a page's `items`) follow the route's order (the table above).
-  `nextCursor` is the last item's id: pass it back as `cursor` for the next page, and omit
+- On the movie page, `genres` are by name. `cast` is top-billed with the lead first, and `crew`
+  holds key jobs only; each is at most 20, one entry per person. A cast member's `character` joins
+  that person's roles ("Aventi / Averil") and is null when TMDB names none; a crew member's `jobs`
+  come highest-ranked first.
+- Rows (a carousel's or top 10's array, or a page's `items`) follow the route's order (the table
+  above). `nextCursor` is the last item's id: pass it back as `cursor` for the next page, and omit
   `cursor` for the first. It is null on the last page. `limit` is movies per page.
-- `rating` keeps the movies whose card shows that many stars or half a star more, from at least
-  30 TMDB votes.
+- `rating` keeps the movies whose card shows that many stars or half a star less (1 also includes
+  0), from at least 100 TMDB votes.
 
 ## Contract with `../web`
 
-- `openapi.json`, committed, → `npm run api:types` in `../web` → `src/api/schema.d.ts`, whose
-  schemas `src/api/types.ts` aliases by DTO class name (`.claude/rules/nestjs.md`).
+- `npm run openapi` here → `openapi.json`, committed → `npm run api:types` in `../web` →
+  `src/api/schema.d.ts`, whose schemas `src/api/types.ts` aliases by DTO class name
+  (`.claude/rules/nestjs.md`). The web pulls; nothing here writes into it. What it hasn't caught
+  up with yet: `state.md`.
 - The web keeps its own table of the 19 TMDB genres (ids and slugs) and resolves a genre slug to
   the id the genre routes take.
-- The web parses input before calling: `parseMovieFilters` falls back to the defaults rather
-  than send what the API would reject with 400, and `parseMovieId` rejects anything but a
-  positive Postgres integer (`state.md`).
+- The web parses input before calling: `parseMovieFilters` falls back to the defaults, and
+  `parseMovieId` rejects anything but a positive Postgres integer. What they stop, the API would
+  answer with a 400.
 - The web's star display and the `rating` filter share one formula (`queries.md`).
 
 ## Patterns
 
-- **DTO classes as types.** Services return plain objects; the classes exist for the Swagger
-  plugin (`nestjs.md`).
-- **Index-matched keyset paging.** Orderings end in `id` and match a browse index, and a deep
-  page costs what the first does (`queries.md`).
+- **DTO classes as types.** Services return plain objects; the response classes exist for the
+  Swagger plugin (`nestjs.md`).
+- **Validated input.** Query strings and path ids bind to DTOs the global pipe checks, so what
+  Postgres can't hold is a 400 before any query runs (`nestjs.md`).
+- **One keyset page.** Every paginated list goes through `MoviesService.findPage`. Orderings end
+  in `id`, all but `top-rated` match a browse index, and a deep page costs what the first does.
+  The predicate is hand-written, not Prisma's `cursor` (`queries.md`).
 - **Calendar dates as strings, bigint as numbers** at the response edge (`queries.md`).
 - **Bulk writes through unnest.** One `INSERT … SELECT FROM unnest(arrays)` per table, in one
   transaction: the import's technique, meant for the seeder too (`tmdb-import.md`).
@@ -124,14 +133,19 @@ What values mean, which `openapi.json` doesn't say.
 - `src/config/env.schema.ts`: `envSchema` and `Env`.
 - `src/prisma/`: `PrismaModule`, `PrismaService`. The generated client is in
   `src/generated/prisma/`.
-- `src/common/dto/`: `CursorPageQueryDto`, `MoviePosterDto`, `MovieListDto`,
-  `MovieListItemDto`.
+- `src/common/`, what modules share: `constants.ts` (`POSTGRES_INT_MAX`), `dto/` (`IdParamDto`,
+  `MoviePosterDto`) and `utils/` (`toCalendarDate`).
 - `src/modules/carousel/`: `CarouselController`, `CarouselService` (`TRENDING_NOW_WINDOW`) and
-  `dto/`.
-- `src/modules/movies/`: `MoviesController`, `MoviesService`, `movie-sort.ts` (`MOVIE_SORTS`,
-  `movieSortQuery`), `movie-rating-filter.ts` (`movieRatingWhere`, `MIN_VOTES_FOR_RATING`),
-  `movie-credits.ts` (`movieCreditsWhere`, `toCastAndCrew`, `CAST_LIMIT`, `CREW_LIMIT`,
-  `KEY_CREW_JOBS`) and `dto/`.
+  `dto/`, one DTO per route.
+- `src/modules/movies/`: `MoviesController`, `MoviesService` (`findPage`), and:
+  - `dto/`: `CursorPageQueryDto`, `ListMoviesQueryDto`, `MovieListDto` (and its
+    `MovieListItemDto`), `MovieDetailDto` (and its `GenreTagDto`, `CastMemberDto`,
+    `CrewMemberDto`), `TopTenMovieDto`.
+  - `utils/movie-sort.ts`: `MOVIE_SORTS`, `movieCursorSelect`, `movieSortQuery`.
+  - `utils/movie-list.ts`: `movieListSelect`, `toMovieList`.
+  - `utils/movie-rating-filter.ts`: `movieRatingWhere`, `MIN_VOTES_FOR_RATING`.
+  - `utils/movie-credits.ts`: `movieCreditsWhere`, `toCastAndCrew`, `CAST_LIMIT`, `CREW_LIMIT`,
+    `KEY_CREW_JOBS`.
 - `src/tmdb-import/`: `TmdbImportModule`, `TmdbImportService`, `TmdbClient`,
   `TmdbExportService`, `ChunkWriter`, `RateLimiter`, `mapMovie`, `pickTrailerKey`,
   `recomputeWeightedRatings`, and the constants, errors and TMDB types.

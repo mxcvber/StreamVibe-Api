@@ -5,7 +5,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { API_PREFIX, createOpenApiDocument } from './openapi';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   // Stripe verifies webhook signatures against the unparsed body, so the raw
   // buffer has to be preserved before the JSON parser touches it. Enabling it
   // at creation costs nothing here and is awkward to retrofit later.

@@ -1,10 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { IdParamDto } from '../../common/dto/id-param.dto';
+import { CursorPageQueryDto } from './dto/cursor-page-query.dto';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from '../../common/dto/movie-list.dto';
-import { MoviesService } from './movies.service';
-import { CursorPageQueryDto } from '../../common/dto/cursor-page-query.dto';
-import { TopTenMoviesDto } from './dto/top-10.dto';
 import { MovieDetailDto } from './dto/movie-detail.dto';
+import { MovieListDto } from './dto/movie-list.dto';
+import { TopTenMovieDto } from './dto/top-ten-movie.dto';
+import { MoviesService } from './movies.service';
 
 @Controller('movies')
 export class MoviesController {
@@ -15,26 +16,23 @@ export class MoviesController {
     return this.moviesService.findAll(query);
   }
 
-  /** One movie's page, minus its reviews. `id` is the TMDB movie id. */
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<MovieDetailDto> {
+  findOne(@Param() { id }: IdParamDto): Promise<MovieDetailDto> {
     return this.moviesService.findOne(id);
   }
 
-  /** A genre's released movies, newest first. `id` is the TMDB genre id. */
   @Get(':id/genre')
   findMoviesByGenre(
-    @Param('id', ParseIntPipe) id: number,
+    @Param() { id }: IdParamDto,
     @Query() query: CursorPageQueryDto,
   ): Promise<MovieListDto> {
     return this.moviesService.findMoviesByGenre(id, query);
   }
 
-  /** A genre's 10 most popular movies. `id` is the TMDB genre id. */
   @Get(':id/genre/top-10')
   findTopTenMoviesByGenre(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<TopTenMoviesDto> {
+    @Param() { id }: IdParamDto,
+  ): Promise<TopTenMovieDto[]> {
     return this.moviesService.findTopTenMoviesByGenre(id);
   }
 }

@@ -3,7 +3,7 @@
   "paths": {
     "/api/v1/carousel/top-in-genres": {
       "get": {
-        "operationId": "CarouselController_findTopMoviePosters",
+        "operationId": "CarouselController_findTopInGenres",
         "parameters": [],
         "responses": {
           "200": {
@@ -61,7 +61,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/CarouselNewReleaseDto"
+                    "$ref": "#/components/schemas/CarouselNewReleasesDto"
                   }
                 }
               }
@@ -117,7 +117,6 @@
             "name": "sort",
             "required": false,
             "in": "query",
-            "description": "Order of the list. `newest` lists upcoming movies only, soonest first.",
             "schema": {
               "default": "popular",
               "type": "string",
@@ -132,7 +131,6 @@
             "name": "rating",
             "required": false,
             "in": "query",
-            "description": "Only movies whose card shows this many stars or half a star more, from\nat least 30 TMDB votes.",
             "schema": {
               "minimum": 1,
               "maximum": 5,
@@ -146,6 +144,7 @@
             "description": "The `nextCursor` of the previous page; omit it for the first page.",
             "schema": {
               "minimum": 1,
+              "maximum": 2147483647,
               "type": "number"
             }
           }
@@ -176,6 +175,8 @@
             "required": true,
             "in": "path",
             "schema": {
+              "minimum": 1,
+              "maximum": 2147483647,
               "type": "number"
             }
           }
@@ -192,7 +193,6 @@
             }
           }
         },
-        "summary": "One movie's page, minus its reviews. `id` is the TMDB movie id.",
         "tags": [
           "Movies"
         ]
@@ -207,6 +207,8 @@
             "required": true,
             "in": "path",
             "schema": {
+              "minimum": 1,
+              "maximum": 2147483647,
               "type": "number"
             }
           },
@@ -229,6 +231,7 @@
             "description": "The `nextCursor` of the previous page; omit it for the first page.",
             "schema": {
               "minimum": 1,
+              "maximum": 2147483647,
               "type": "number"
             }
           }
@@ -245,7 +248,6 @@
             }
           }
         },
-        "summary": "A genre's released movies, newest first. `id` is the TMDB genre id.",
         "tags": [
           "Movies"
         ]
@@ -260,6 +262,8 @@
             "required": true,
             "in": "path",
             "schema": {
+              "minimum": 1,
+              "maximum": 2147483647,
               "type": "number"
             }
           }
@@ -270,13 +274,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TopTenMoviesDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopTenMovieDto"
+                  }
                 }
               }
             }
           }
         },
-        "summary": "A genre's 10 most popular movies. `id` is the TMDB genre id.",
         "tags": [
           "Movies"
         ]
@@ -358,7 +364,7 @@
           "runtime"
         ]
       },
-      "CarouselNewReleaseDto": {
+      "CarouselNewReleasesDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -427,12 +433,10 @@
           },
           "releaseDate": {
             "type": "string",
-            "nullable": true,
-            "description": "\"YYYY-MM-DD\"; null when TMDB had no release date."
+            "nullable": true
           },
           "voteAverage": {
-            "type": "number",
-            "description": "TMDB average, 0–10."
+            "type": "number"
           }
         },
         "required": [
@@ -447,7 +451,6 @@
         "type": "object",
         "properties": {
           "items": {
-            "description": "In the route's order: the requested `sort` on /movies, newest first on a genre.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MovieListItemDto"
@@ -468,8 +471,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB genre id."
+            "type": "number"
           },
           "name": {
             "type": "string"
@@ -485,20 +487,17 @@
         "properties": {
           "character": {
             "type": "string",
-            "nullable": true,
-            "description": "The role; null when TMDB names none."
+            "nullable": true
           },
           "id": {
-            "type": "number",
-            "description": "TMDB person id."
+            "type": "number"
           },
           "name": {
             "type": "string"
           },
           "profilePath": {
             "type": "string",
-            "nullable": true,
-            "description": "TMDB image path; null when TMDB has no photo."
+            "nullable": true
           }
         },
         "required": [
@@ -512,23 +511,20 @@
         "type": "object",
         "properties": {
           "jobs": {
-            "description": "This person's key jobs on the movie, highest-ranked first.",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "id": {
-            "type": "number",
-            "description": "TMDB person id."
+            "type": "number"
           },
           "name": {
             "type": "string"
           },
           "profilePath": {
             "type": "string",
-            "nullable": true,
-            "description": "TMDB image path; null when TMDB has no photo."
+            "nullable": true
           }
         },
         "required": [
@@ -542,8 +538,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
-            "description": "TMDB movie id."
+            "type": "number"
           },
           "title": {
             "type": "string"
@@ -557,32 +552,26 @@
             "nullable": true
           },
           "posterPath": {
-            "type": "string",
-            "description": "TMDB image path (\"/abc123.jpg\"); the frontend builds the image URL."
+            "type": "string"
           },
           "backdropPath": {
             "type": "string",
-            "nullable": true,
-            "description": "Landscape hero image; null for a few movies — use the poster then."
+            "nullable": true
           },
           "trailerKey": {
-            "type": "string",
-            "description": "YouTube video id of the trailer."
+            "type": "string"
           },
           "releaseDate": {
             "type": "string",
-            "nullable": true,
-            "description": "\"YYYY-MM-DD\"; null when TMDB had no release date."
+            "nullable": true
           },
           "runtime": {
             "type": "number",
-            "nullable": true,
-            "description": "Minutes; null when unknown."
+            "nullable": true
           },
           "budget": {
             "type": "number",
-            "nullable": true,
-            "description": "Null when unknown, as is revenue."
+            "nullable": true
           },
           "revenue": {
             "type": "number",
@@ -593,40 +582,34 @@
             "nullable": true
           },
           "originCountry": {
-            "description": "ISO 3166-1 codes, e.g. \"IN\".",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "voteAverage": {
-            "type": "number",
-            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+            "type": "number"
           },
           "streamVibeRating": {
             "type": "number",
-            "nullable": true,
-            "description": "StreamVibe review average, 1–5; null until the movie has a review."
+            "nullable": true
           },
           "reviewCount": {
             "type": "number"
           },
           "genres": {
-            "description": "By name.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GenreTagDto"
             }
           },
           "cast": {
-            "description": "Top-billed, lead first.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CastMemberDto"
             }
           },
           "crew": {
-            "description": "Key jobs only, one entry per person.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CrewMemberDto"
@@ -668,8 +651,7 @@
             "type": "string"
           },
           "voteAverage": {
-            "type": "number",
-            "description": "TMDB average, 0–10; the frontend halves it for the 5-star display."
+            "type": "number"
           }
         },
         "required": [
@@ -677,21 +659,6 @@
           "title",
           "posterPath",
           "voteAverage"
-        ]
-      },
-      "TopTenMoviesDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "description": "Most popular first.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/TopTenMovieDto"
-            }
-          }
-        },
-        "required": [
-          "items"
         ]
       }
     }

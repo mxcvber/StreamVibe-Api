@@ -1,84 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { toCalendarDate } from '../../common/utils/to-calendar-date';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CursorPageQueryDto } from './dto/cursor-page-query.dto';
 import { ListMoviesQueryDto } from './dto/list-movies-query.dto';
-import { MovieListDto } from '../../common/dto/movie-list.dto';
-import { movieRatingWhere } from './movie-rating-filter';
-import { movieSortQuery } from './movie-sort';
-import { CursorPageQueryDto } from '../../common/dto/cursor-page-query.dto';
-import { TopTenMoviesDto } from './dto/top-10.dto';
 import { MovieDetailDto } from './dto/movie-detail.dto';
-import { movieCreditsWhere, toCastAndCrew } from './movie-credits';
+import { MovieListDto } from './dto/movie-list.dto';
+import { TopTenMovieDto } from './dto/top-ten-movie.dto';
+import { movieCreditsWhere, toCastAndCrew } from './utils/movie-credits';
+import { movieListSelect, toMovieList } from './utils/movie-list';
+import { movieRatingWhere } from './utils/movie-rating-filter';
+import {
+  movieCursorSelect,
+  movieSortQuery,
+  type MovieOrder,
+} from './utils/movie-sort';
 
 @Injectable()
 export class MoviesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * One page of the whole catalog, in the requested sort, optionally narrowed
-   * to one star rating.
-   *
-   * Cursor-paginated on the last movie's id: Prisma looks up that movie's
-   * position in the ordering and continues after it.
-   */
-  async findAll({
-    cursor,
-    limit,
+  findAll({
     sort,
     rating,
+    ...page
   }: ListMoviesQueryDto): Promise<MovieListDto> {
-    // The cursor movie's sort values, for the index bound in movieSortQuery.
-    const cursorMovie =
-      cursor === undefined
-        ? undefined
-        : await this.prisma.movie.findUnique({
-            where: { id: cursor },
-            select: {
-              popularity: true,
-              voteAverage: true,
-              releaseDate: true,
-            },
-          });
-    // Not a movie id, or not one this sort can hold: no position to continue from.
-    if (cursorMovie === null) return { items: [], nextCursor: null };
-    const sortQuery = movieSortQuery(sort, cursorMovie);
-    if (!sortQuery) return { items: [], nextCursor: null };
-
-    const rows = await this.prisma.movie.findMany({
-      where: { AND: [sortQuery.where, movieRatingWhere(rating)] },
-      orderBy: sortQuery.orderBy,
-      // skip: 1 leaves out the cursor movie itself, the last of the previous page.
-      ...(cursor !== undefined && { cursor: { id: cursor }, skip: 1 }),
-      // One extra row tells whether a next page exists, without a count query.
-      take: limit + 1,
-      select: {
-        id: true,
-        title: true,
-        posterPath: true,
-        releaseDate: true,
-        voteAverage: true,
-      },
-    });
-
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
-
-    // DATE comes back as UTC midnight; send the plain "YYYY-MM-DD" so a browser
-    // west of UTC doesn't show the day before.
-    return {
-      items: page.map(({ releaseDate, ...movie }) => ({
-        ...movie,
-        releaseDate: releaseDate?.toISOString().slice(0, 10) ?? null,
-      })),
-      nextCursor: hasMore ? page[page.length - 1].id : null,
-    };
+    return this.findPage(sort, movieRatingWhere(rating), page);
   }
 
-  /**
-   * Everything the movie page shows except its reviews, which page separately.
-   *
-   * The movie by primary key, its genres, and only the credits the page shows
-   * (see movieCreditsWhere) — TMDB lists up to ~1,000 crew per movie.
-   */
   async findOne(id: number): Promise<MovieDetailDto> {
     const movie = await this.prisma.movie.findUnique({
       where: { id },
@@ -100,15 +49,11 @@ export class MoviesService {
         reviewCount: true,
         ratingSum: true,
         genres: {
-          // `genres` holds movie_genres join rows, so sort by the genre each
-          // one points to.
           orderBy: { genre: { name: 'asc' } },
           select: { genre: { select: { id: true, name: true } } },
         },
         credits: {
           where: movieCreditsWhere,
-          // Cast in billing order. Crew has no cast_order (NULLs sort last),
-          // so the second key orders it, most popular first.
           orderBy: [{ order: 'asc' }, { person: { popularity: 'desc' } }],
           select: {
             kind: true,
@@ -119,6 +64,7 @@ export class MoviesService {
         },
       },
     });
+
     if (!movie) throw new NotFoundException(`Movie ${id} not found`);
 
     const {
@@ -134,11 +80,7 @@ export class MoviesService {
 
     return {
       ...rest,
-      // DATE comes back as UTC midnight; send the plain "YYYY-MM-DD" so a
-      // browser west of UTC doesn't show the day before.
-      releaseDate: releaseDate?.toISOString().slice(0, 10) ?? null,
-      // BIGINT comes back as bigint, which JSON.stringify throws on. Number()
-      // is exact below 2^53, far above any budget or revenue.
+      releaseDate: releaseDate && toCalendarDate(releaseDate),
       budget: budget === null ? null : Number(budget),
       revenue: revenue === null ? null : Number(revenue),
       streamVibeRating: reviewCount > 0 ? ratingSum / reviewCount : null,
@@ -148,94 +90,20 @@ export class MoviesService {
     };
   }
 
-  /**
-   * One page of a genre's released movies, newest first.
-   *
-   * Released only, as in the New Releases carousel: "today" is the UTC date,
-   * and `lte` excludes undated movies, which lets the planner use the partial
-   * `(release_date DESC, id DESC) WHERE release_date IS NOT NULL` index. The
-   * genre filter is an EXISTS on movie_genres checked per row of that walk, so
-   * a rare genre reads further down the index per page than a common one —
-   * negligible at the catalog's ~4.5k movies.
-   *
-   * Cursor-paginated on the last movie's id, as `findAll` is.
-   */
   async findMoviesByGenre(
     genreId: number,
-    { cursor, limit }: CursorPageQueryDto,
+    page: CursorPageQueryDto,
   ): Promise<MovieListDto> {
     await this.assertGenreExists(genreId);
 
-    // The cursor movie's release date, for the index bound below.
-    const cursorMovie =
-      cursor === undefined
-        ? undefined
-        : await this.prisma.movie.findUnique({
-            where: { id: cursor },
-            select: { releaseDate: true },
-          });
-    // Not a movie id, or an undated one this list never holds: no position
-    // to continue from.
-    if (cursorMovie === null || cursorMovie?.releaseDate === null) {
-      return { items: [], nextCursor: null };
-    }
-
-    const rows = await this.prisma.movie.findMany({
-      where: {
-        genres: { some: { genreId } },
-        // The second bound is redundant with Prisma's cursor predicate, which
-        // Postgres can only apply as a filter; as an Index Cond it starts the
-        // walk at the cursor, so a deep page costs the same as the first (see
-        // movieSortQuery). `lte`, not `lt`: movies sharing the cursor's date
-        // still have to come through for Prisma to sort out by id.
-        AND: [
-          { releaseDate: { lte: new Date() } },
-          { releaseDate: { lte: cursorMovie?.releaseDate } },
-        ],
-      },
-      // id breaks release-date ties and makes the cursor a plain movie id.
-      orderBy: [{ releaseDate: 'desc' }, { id: 'desc' }],
-      // skip: 1 leaves out the cursor movie itself, the last of the previous page.
-      ...(cursor !== undefined && { cursor: { id: cursor }, skip: 1 }),
-      // One extra row tells whether a next page exists, without a count query.
-      take: limit + 1,
-      select: {
-        id: true,
-        title: true,
-        posterPath: true,
-        releaseDate: true,
-        voteAverage: true,
-      },
-    });
-
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
-
-    // `lte` already excludes null. DATE comes back as UTC midnight; send the
-    // plain "YYYY-MM-DD" so a browser west of UTC doesn't show the day before.
-    return {
-      items: page.map(({ releaseDate, ...movie }) => ({
-        ...movie,
-        releaseDate: releaseDate!.toISOString().slice(0, 10),
-      })),
-      nextCursor: hasMore ? page[page.length - 1].id : null,
-    };
+    return this.findPage('released', { genres: { some: { genreId } } }, page);
   }
 
-  /**
-   * A genre's 10 most popular movies, most popular first.
-   *
-   * `(popularity DESC, id DESC)` matches the movies browse index exactly, so
-   * Postgres walks that index with no sort. The genre filter is an EXISTS on
-   * movie_genres checked per row of that walk, so a rare genre reads further
-   * down the index before it has 10 — negligible at the catalog's ~4.5k movies.
-   */
-  async findTopTenMoviesByGenre(genreId: number): Promise<TopTenMoviesDto> {
+  async findTopTenMoviesByGenre(genreId: number): Promise<TopTenMovieDto[]> {
     await this.assertGenreExists(genreId);
 
-    const items = await this.prisma.movie.findMany({
+    return this.prisma.movie.findMany({
       where: { genres: { some: { genreId } } },
-      // id breaks popularity ties.
       orderBy: [{ popularity: 'desc' }, { id: 'desc' }],
       take: 10,
       select: {
@@ -245,8 +113,37 @@ export class MoviesService {
         voteAverage: true,
       },
     });
+  }
 
-    return { items };
+  private async findPage(
+    order: MovieOrder,
+    filter: Prisma.MovieWhereInput,
+    { cursor, limit }: CursorPageQueryDto,
+  ): Promise<MovieListDto> {
+    const cursorMovie =
+      cursor === undefined
+        ? undefined
+        : await this.prisma.movie.findUnique({
+            where: { id: cursor },
+            select: movieCursorSelect,
+          });
+
+    if (cursorMovie === null) return { items: [], nextCursor: null };
+
+    const sortQuery = movieSortQuery(order, cursorMovie);
+
+    if (!sortQuery) return { items: [], nextCursor: null };
+
+    const rows = await this.prisma.movie.findMany({
+      where: { AND: [sortQuery.where, filter] },
+      orderBy: sortQuery.orderBy,
+
+      // One extra row tells whether a next page exists, without a count query.
+      take: limit + 1,
+      select: movieListSelect,
+    });
+
+    return toMovieList(rows, limit);
   }
 
   /** A 404 for an unknown genre id, rather than an empty list. */
