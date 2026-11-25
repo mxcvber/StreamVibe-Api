@@ -12,7 +12,8 @@ paths:
 
 - `npm run generate` is a standalone command, run deliberately. Never wire it into another
   script as a `prebuild`/`predev` lifecycle hook: one command invoked explicitly beats the same
-  thing duplicated across hidden hooks (the author's call).
+  thing duplicated across hidden hooks (the author's call). `npm run openapi` keeps to that: its
+  build is in the script itself (`nest build && …`), not in a `preopenapi` hook (`nestjs.md`).
 - Both tsconfigs pin `tsBuildInfoFile` inside `dist/`. Don't remove the pins: with `incremental`
   on and `rootDir` set, TypeScript's default puts the buildinfo at the repo root, where
   `deleteOutDir` can't clear it. A deleted `dist/` then never gets rebuilt, and `npm run dev`

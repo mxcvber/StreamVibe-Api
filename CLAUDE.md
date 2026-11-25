@@ -23,8 +23,8 @@ choice is expensive to reverse, surface the trade-off instead of just picking on
 - `npm run generate`: Prisma Client → `src/generated/prisma` (gitignored), after a clone and
   every `schema.prisma` change; `build` and `dev` fail without it.
 - `npm run migrate`: create and apply a migration. Run `npm run generate` after it.
-- `npm run openapi`: write `openapi.json` from `dist/`, after changing a DTO, a controller's
-  return type or a route.
+- `npm run openapi`: build, then write `openapi.json`, after changing a DTO, a controller's
+  return type or a route. The web picks it up with `npm run api:types`, run in `../web`.
 - `npm run import:tmdb`: the one-time, resumable TMDB import, from `dist/`.
 - `npm run lint`: ESLint **with `--fix`**, so it rewrites files. `npx tsc --noEmit`: type-check.
 
