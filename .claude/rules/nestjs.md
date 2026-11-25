@@ -60,9 +60,10 @@ paths:
 - A numeric query or path param needs `@Type(() => Number)`: the pipe transforms but doesn't
   convert implicitly, so `@IsInt` would reject the string.
 - **DTO class names are contract names.** `openapi.json` names its schemas after the classes,
-  and `../web/src/api/types.ts` aliases those schemas to the names the web uses (`MovieDetail` is
+  and `../web/src/api/types.ts` aliases each schema under its name without `Dto` (`MovieDetail` is
   `Schema["MovieDetailDto"]`). A rename reaches the web in three steps: `npm run openapi` here,
-  `npm run api:types` there, then that one alias, which fails to type-check until it is repointed.
+  `npm run api:types` there, then that alias, which fails to type-check until it and the files that
+  import it are renamed.
 
 ## OpenAPI (`openapi.json`, `/docs`)
 

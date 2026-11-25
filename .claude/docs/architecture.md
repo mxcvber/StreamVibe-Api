@@ -90,8 +90,7 @@ What values mean, which `openapi.json` doesn't say.
 
 - `npm run openapi` here → `openapi.json`, committed → `npm run api:types` in `../web` →
   `src/api/schema.d.ts`, whose schemas `src/api/types.ts` aliases by DTO class name
-  (`.claude/rules/nestjs.md`). The web pulls; nothing here writes into it. What it hasn't caught
-  up with yet: `state.md`.
+  (`.claude/rules/nestjs.md`). The web pulls; nothing here writes into it.
 - The web keeps its own table of the 19 TMDB genres (ids and slugs) and resolves a genre slug to
   the id the genre routes take.
 - The web parses input before calling: `parseMovieFilters` falls back to the defaults, and

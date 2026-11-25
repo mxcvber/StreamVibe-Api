@@ -54,18 +54,6 @@ movie page's reviews.
 - `PrismaPg`'s pool runs on its defaults (`prisma.md`), and Postgres on stock settings
   (`environment.md`).
 
-## What `../web` hasn't caught up with (checked 2026-11-25)
-
-- `npm run api:types` hasn't run there since the carousel DTO renames, so `src/api/types.ts` still
-  aliases four names that no longer exist: `GenreDto` is now `CarouselTopInGenresDto`,
-  `PopularMovieDto` `CarouselTrendingNowDto`, `NewReleaseMovieDto` `CarouselNewReleasesDto`, and
-  `MustWatchMovieDto` `CarouselMustWatchDto`. Type-checked on a copy: with those four repointed,
-  nothing else in the web breaks. At runtime it already matches: its working tree calls the
-  current routes, and the shapes are the same.
-- Its text is behind: `architecture.md` still names `/carousel/popular`, `data-fetching.md` and
-  `movie-route.ts` say the API answers 500 for an out-of-range id (400 now), `movie-filters.ts`
-  points at the old `movie-sort.ts` path, and `getMustWatchMovies`'s comment says 20 movies (16).
-
 ## Known issues
 
 - No TMDB attribution is shown anywhere: the OpenAPI description dropped "This product uses the
